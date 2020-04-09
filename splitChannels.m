@@ -92,13 +92,13 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
     blueData = data(:,:,blueInd);
     hemoData = data(:,:,~blueInd);
     
+    % find all triggers in stim line and choose the one that is on the longest as the true stimulus trigger
+    % apparently this line can be contaminated by noise
+    stimOn = find(diff(double(Analog(opts.stimLine,:)) > 1500) == 1);
+    ind = find((find(diff(double(Analog(opts.stimLine,:)) > 1500) == -1) - stimOn) > 2,1); %only use triggers that are more than 2ms long
+    stimOn = stimOn(ind) + 1;
+    
     if ~isinf(opts.postStim)
-        % find all triggers in stim line and choose the one that is on the longest as the true stimulus trigger
-        % apparently this line can be contaminated by noise
-        stimOn = find(diff(double(Analog(opts.stimLine,:)) > 1500) == 1);
-        ind = find((find(diff(double(Analog(opts.stimLine,:)) > 1500) == -1) - stimOn) > 2,1); %only use triggers that are more than 2ms long
-        stimOn = stimOn(ind) + 1;
-        
         if isempty(stimOn) || isempty(find((blueTimes - stimOn) > 0, 1))
             error(['No stimulus trigger found. Current file: ' cFile])
         else
@@ -150,8 +150,18 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         chanDiff = size(blueData,3) - size(hemoData,3);
         if chanDiff < 0 %less blue frames, cut hemo frame
             hemoData = hemoData(:,:,1:end+chanDiff);
+            hemoTimes = hemoTimes(1:end+chanDiff);
         elseif chanDiff > 0 %less hemo frames, cut blue frame
             blueData = blueData(:,:,1:end-chanDiff);
+            blueTimes = blueTimes(1:end-chanDiff);
+        end
+        
+        % check for stimulus onset
+        if isempty(stimOn) || isempty(find((blueTimes - stimOn) > 0, 1))
+            warning(['No stimulus trigger found. Current file: ' cFile])
+            stimOn = NaN;
+        else
+            stimOn = find((blueTimes - stimOn) > 0, 1);  %first blue frame after stimOn
         end
     end
     

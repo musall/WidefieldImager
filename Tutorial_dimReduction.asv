@@ -1,7 +1,7 @@
 %construct path to data folder and give some basic info
 opts.fPath = [pwd filesep 'DemoRec' filesep]; %path to demo recording
 opts.fName = 'Frames'; %name of imaging data files.
-opts.nrBlocks = 25; %nr of blocks for svd
+opts.nrBlocks = 49; %nr of blocks for svd
 opts.overlap = 20; % pixel overlap between blocks
 opts.dimCnt = 200; %nr of components in the final dataset
 opts.blockDims = 20; %number of dimensions from SVD per block
@@ -33,7 +33,7 @@ if iscell(bV)
 end
 
 % combine all blue blocks and run a second SVD
-[nU, s, nV] = fsvd(bV); %combine all blocks in a second SVD
+[nU, s, nV] = fsvd(bV,opts.dimCnt); %combine all blocks in a second SVD
 nV = s * nV'; %multiply S into V
 Sv = diag(s); %keep eigenvalues
 
@@ -61,16 +61,12 @@ dSize = size(blockU);
 blockU = reshape(blockU,[],dSize(end)); %make sure blockU is in pixels x componens
 U = blockU * nU; %make new U with framewide components
 
-% reduce to dimCnt components
-U = U(:, 1:opts.dimCnt); %this is pixels x components
-newV = nV(1:opts.dimCnt,:); %this is components x frames
-
 %% do hemodynamic correction
-corrV = reshape(newV, size(newV,1), [], 2); % split channels
+nV = reshape(nV, size(nV,1), [], 2); % split channels
 U = reshape(U,size(snap,1),size(snap,2),[]); %reshape to frame format
 
 % do hemodynamic correction
-[Vc, regC, T, hemoVar] = Widefield_SvdHemoCorrect(U, corrV(:,:,1), corrV(:,:,2), opts.frameRate);
+[Vc, regC, T, hemoVar] = Widefield_SvdHemoCorrect(U, nV(:,:,1), nV(:,:,2), opts.frameRate);
 
 save([opts.fPath 'Vc.mat'],'Vc','U','Sv','trialCnt','-v7.3');
 save([opts.fPath 'HemoCorrection.mat'],'regC','T', 'hemoVar')

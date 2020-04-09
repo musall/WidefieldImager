@@ -33,14 +33,6 @@ hemoV = bsxfun(@minus, hemoV, nanmean(hemoV));
 blueV(~isnan(blueV(:,1)),:) = single(filtfilt(b,a,double(blueV(~isnan(blueV(:,1)),:))));
 hemoV(~isnan(blueV(:,1)),:) = single(filtfilt(b,a,double(hemoV(~isnan(blueV(:,1)),:))));
 
-% remove edge artefact that can sometimes occur on trial onset
-temp = nansum(blueV,2) .* nansum(hemoV,2);
-temp = abs((temp - nanmedian(temp)) ./ nanstd(temp));
-rejIdx = find(temp > 10);
-rejIdx = [rejIdx; rejIdx+1];
-blueV(rejIdx, :) = NaN;
-hemoV(rejIdx, :) = NaN;
-
 % get core pixels from U
 mask = isnan(U(:,:,1));
 U = arrayShrink(U,mask,'merge'); %only use selected pixels from mask

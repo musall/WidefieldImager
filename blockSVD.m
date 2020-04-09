@@ -1,4 +1,4 @@
-function [bV, bU, blockInd, trialCnt, blueAvg, hemoAvg] = blockSVD(opts)
+function [bV, bU, blockInd, frameCnt, stimTime, blueAvg, hemoAvg] = blockSVD(opts)
 % Code to convert raw data from a given imaging experiment to a
 % low-dimensional representation. Imaging data consists of two channels 
 % with either blue (1) or violet (2) illumination.
@@ -8,7 +8,30 @@ function [bV, bU, blockInd, trialCnt, blueAvg, hemoAvg] = blockSVD(opts)
 % has to be an even number - nrBlocks is rounded down if needed.
 % overlap determines the number of pixels with which individual blocks are
 % overlapping to avoid edge effects.
+%
+% Inputs: 
+% opts: A structure that contains option for dimensionality reduction. 
+%       Refer to 'Tutorial_dimReduction' for an example. 
+% Outputs:
+% bV: A cell array that contains temporal components for each block over
+%     all frames in the session.
+% bU: A cell array that contains spatial components for each block.
+%     Convolve with bV to reconstruct original imaging data.
+% blockInd: Index that can be used to place spatial components in 'bU' in a
+%           larger larger matrix that is the size of the original widefield 
+%           data. Use 'blueAvg' or 'hemoAvg' to determine the size of a
+%           frame in the widefield data.
+% frameCnt: Indicates the number of frames in each trial. First ror is the
+%           trial number, second row is number of frames.
+% stimTime: Indicates the first blue frame after stimulus onset in each
+%           trial. Use this to align with behavior.
+% blueAvg: Mean image of the blue channel. Can be used to get vessel image
+%          or determine size of a single frame in the widefield data.
+% hemoAvg: Same as 'blueAvg' for the violet channel.
+%
+% Simon Musall, 4/9/2020
 
+%% check options
 if ~strcmpi(opts.fPath(end),filesep)
     opts.fPath = [opts.fPath filesep];
 end
@@ -43,6 +66,7 @@ trials = sort(trials);
 if size(rawCheck,1) ~= size(analogCheck,1)
     warning('Unequal number of imaging and analog data files.')
 end
+fileCnt = 10;
 
 %% get reference images for motion correction
 [blueData,~,hemoData] = splitChannels(opts,trials(1));
@@ -88,12 +112,13 @@ if ~exist([opts.fPath 'blockData'], 'dir')
     mkdir([opts.fPath 'blockData']);
 end
 
-trialCnt = NaN(2,fileCnt, 'single'); %use thise to report how many frames were collected in each trial
+frameCnt = NaN(2,fileCnt, 'single'); %use thise to report how many frames were collected in each trial
+stimTime = NaN(1,fileCnt, 'single'); %use thise to report at which frame the stimulus was presented in a given trial (blue channel)
 for iTrials = 1:fileCnt
 
-    [blueData,blueTimes,hemoData,hemoTimes] = splitChannels(opts,trials(iTrials));
-    trialCnt(1,iTrials) = trials(iTrials); %trialNr
-    trialCnt(2,iTrials) = size(blueData,3); %nr of frames
+    [blueData,blueTimes,hemoData,hemoTimes, stimTime(iTrials)] = splitChannels(opts,trials(iTrials));
+    frameCnt(1,iTrials) = trials(iTrials); %trialNr
+    frameCnt(2,iTrials) = size(blueData,3); %nr of frames
     
     if size(blueData,3) ~= size(hemoData,3)
         error(['Trial ' int2str(trials(iTrials)) ': Blue and hemo channels have uneven framecount'])
@@ -162,8 +187,8 @@ for iBlocks = 1 : nrBlocks
         Cnt = Cnt + size(bBlock,2);
         
         % delete block files
-        delete([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '_Trial' num2str(iTrials)]);
-        delete([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '_Trial' num2str(iTrials)]);
+        delete([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '_Trial' num2str(iTrials) '.mat']);
+        delete([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '_Trial' num2str(iTrials) '.mat']);
     end
     
     % compute dF/F   

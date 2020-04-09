@@ -1,4 +1,4 @@
-function [bV, bU, blockInd, trialCnt, blueAvg, hemoAvg] = blockSVD(opts)
+function [bV, bU, blockInd, trialCnt, stimTime, blueAvg, hemoAvg] = blockSVD(opts)
 % Code to convert raw data from a given imaging experiment to a
 % low-dimensional representation. Imaging data consists of two channels 
 % with either blue (1) or violet (2) illumination.
@@ -8,6 +8,19 @@ function [bV, bU, blockInd, trialCnt, blueAvg, hemoAvg] = blockSVD(opts)
 % has to be an even number - nrBlocks is rounded down if needed.
 % overlap determines the number of pixels with which individual blocks are
 % overlapping to avoid edge effects.
+%
+% Inputs: 
+% opts: A structure that contains option for dimensionality reduction. 
+%       Refer to 'Tutorial_dimReduction' for an example. 
+% Outputs:
+% bV: A cell array that contains temporal components for each block over
+%     all frames in the session.
+% bU: A cell array that contains spatial components for each block.
+%     Convolve with bV to reconstruct original imaging data.
+% blockInd: Index that can be used to place spatial components in 'bU' in a
+%           larger larger matrix that is the size of the original imaging 
+%           data. Use 
+% 'blueAvg' 
 
 if ~strcmpi(opts.fPath(end),filesep)
     opts.fPath = [opts.fPath filesep];
@@ -16,15 +29,8 @@ end
 % these should be provided as inputs
 nrBlocks = opts.nrBlocks;
 overlap = opts.overlap;
-
-%construct path to data folder and give some basic info
-opts.fName = 'Frames'; %name of imaging data files.
 opts.plotChans = false; %plot results for blue and violet channel when loading raw data. Will make the code break on the HPC.
-opts.verbosity = false; %flag to supress warnings from 'splitChannel / splitVideo' code.
-
-% analog data lines
-opts.stimLine = 6; %analog line that contains stimulus trigger.
-opts.trigLine = [8 9]; %analog lines for blue and violet light triggers.
+opts.verbosity = false; %flag to supress warnings from 'splitChannel' code.
 
 if nrBlocks ~= floor(sqrt(nrBlocks))^2
     fprintf('Chosen nrBlocks (%d) cannot be squared. Using %d instead.\n', nrBlocks, floor(sqrt(nrBlocks))^2)
@@ -33,7 +39,7 @@ end
 
 disp('==============='); tic;
 disp(opts.fPath); 
-fprintf('Dual-channel recording - Using %d blocks for SVD\n', nrBlocks);
+fprintf('Sampling rate: %dHz; Using %d blocks for SVD\n', opts.frameRate,nrBlocks);
 disp(datestr(now));
 
 %% check if rawData files are present and get trialnumbers for all files
@@ -45,11 +51,12 @@ for iFiles = 1 : fileCnt %go through files and check for trialNr. this is used f
     temp = textscan(rawCheck(iFiles).name,'%s%f%s','Delimiter','_');
     trials(iFiles) = temp{2};
 end
-    
+trials = sort(trials);
+
 if size(rawCheck,1) ~= size(analogCheck,1)
     warning('Unequal number of imaging and analog data files.')
 end
-trials = sort(trials);
+fileCnt = 10;
 
 %% get reference images for motion correction
 [blueData,~,hemoData] = splitChannels(opts,trials(1));
@@ -95,26 +102,16 @@ if ~exist([opts.fPath 'blockData'], 'dir')
     mkdir([opts.fPath 'blockData']);
 end
 
-try
-    blueRef = gpuArray(blueRef);
-    hemoRef = gpuArray(hemoRef);
-end
-
 trialCnt = NaN(2,fileCnt, 'single'); %use thise to report how many frames were collected in each trial
+stimTime = NaN(1,fileCnt, 'single'); %use thise to report at which frame the stimulus was presented in a given trial (blue channel)
 for iTrials = 1:fileCnt
 
-    [blueData,blueTimes,hemoData,hemoTimes] = splitChannels(opts,trials(iTrials));
-    
+    [blueData,blueTimes,hemoData,hemoTimes, stimTime(iTrials)] = splitChannels(opts,trials(iTrials));
     trialCnt(1,iTrials) = trials(iTrials); %trialNr
     trialCnt(2,iTrials) = size(blueData,3); %nr of frames
     
     if size(blueData,3) ~= size(hemoData,3)
         error(['Trial ' int2str(trials(iTrials)) ': Blue and hemo channels have uneven framecount'])
-    end
-    
-    try
-        blueData = gpuArray(blueData);
-        hemoData = gpuArray(hemoData);
     end
     
     %perform image alignment for both channels
@@ -125,12 +122,10 @@ for iTrials = 1:fileCnt
         [~, temp] = dftregistration(hemoRef, fft2(hemoData(:, :, iFrames)), 10);
         hemoData(:, :, iFrames) = abs(ifft2(temp));
     end
-    blueData = gather(blueData);
-    hemoData = gather(hemoData);
     
-    % keep avg for each trial to check if channels were separated correctly
-    blueAvg(:,:,iTrials) = mean(blueData,3);
-    hemoAvg(:,:,iTrials) = mean(hemoData,3);
+    % keep baseline average for each trial
+    blueAvg(:,:,iTrials) = mean(blueData(:,:,1:opts.baselineFrames),3);
+    hemoAvg(:,:,iTrials) = mean(hemoData(:,:,1:opts.baselineFrames),3);
     
     %keep timestamps for all frames
     blueFrameTimes{iTrials} = blueTimes;
@@ -182,8 +177,8 @@ for iBlocks = 1 : nrBlocks
         Cnt = Cnt + size(bBlock,2);
         
         % delete block files
-        delete([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '_Trial' num2str(iTrials)]);
-        delete([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '_Trial' num2str(iTrials)]);
+        delete([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '_Trial' num2str(iTrials) '.mat']);
+        delete([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '_Trial' num2str(iTrials) '.mat']);
     end
     
     % compute dF/F   
