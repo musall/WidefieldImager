@@ -20,7 +20,7 @@ opts.baselineFrames = 1:opts.frameRate; %1s baseline. this is used for dF/F anal
 
 %% run dimensionality reduction
 tic;
-[bV, bU, blockInd, trialCnt, stimTime, snap] = blockSVD(opts); %this loads raw data and does the first blockwise SVD
+[bV, bU, blockInd, frameCnt, stimTime, snap] = blockSVD(opts); %this loads raw data and does the first blockwise SVD
 toc;
 
 %% create whole-frame components
@@ -66,8 +66,8 @@ nV = reshape(nV, size(nV,1), [], 2); % split channels
 U = reshape(U,size(snap,1),size(snap,2),[]); %reshape to frame format
 
 % do hemodynamic correction
-[Vc, regC, T, hemoVar] = Widefield_SvdHemoCorrect(U, nV(:,:,1), nV(:,:,2), opts.frameRate);
+[Vc, regC, T, hemoVar] = SvdHemoCorrect(U, nV(:,:,1), nV(:,:,2), opts.frameRate, frameCnt(2,:));
 
-save([opts.fPath 'Vc.mat'],'Vc','U','Sv','trialCnt','-v7.3');
+save([opts.fPath 'Vc.mat'],'Vc','U','Sv','frameCnt', 'stimTime', '-v7.3');
 save([opts.fPath 'HemoCorrection.mat'],'regC','T', 'hemoVar')
 save([opts.fPath 'opts.mat'],'opts')
