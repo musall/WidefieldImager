@@ -22,16 +22,16 @@ function varargout = WidefieldImager(varargin)
 
 % Edit the above text to modify the response to help WidefieldImager
 
-% Last Modified by GUIDE v2.5 16-Jan-2019 09:36:37
+% Last Modified by GUIDE v2.5 10-Apr-2020 10:12:39
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
-                   'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @WidefieldImager_OpeningFcn, ...
-                   'gui_OutputFcn',  @WidefieldImager_OutputFcn, ...
-                   'gui_LayoutFcn',  [] , ...
-                   'gui_Callback',   []);
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @WidefieldImager_OpeningFcn, ...
+    'gui_OutputFcn',  @WidefieldImager_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
     gui_State.gui_Callback = str2func(varargin{1});
 end
@@ -52,15 +52,16 @@ function WidefieldImager_OpeningFcn(hObject, eventdata, handles, varargin)
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to WidefieldImager (see VARARGIN)
 
-% Choose default command line output for WidefieldImager
+% check if matlab is 2016b or newer
 handles.output = hObject;
-ver = datenum(version('-date')); %make sure matlab is 2016b or newer
+if datenum(version('-date')) < 736580 %check if matlab is 2016b or newer
+    warning('Matlab version is an older as 2016b. This code has not been tested on earlier versions.')
+end
 
-% if ver < 736580 %release date for 2016b
-%     error('Matlab version is older as version 2016b. This can cause problems with timing accuracy.')
-% end    
+% set server path
+handles.serverPath.String = '\\grid-hs\churchland_hpc_home\smusall\'; %default path to data server
 
-%% initialize NI card    
+%% initialize NI card
 handles = RecordMode_Callback(handles.RecordMode, [], handles); %check recording mode to create correct ni object
 
 %% initialize camera and set handles
@@ -73,7 +74,7 @@ try
     src.E2ExposureTime = 1000/str2double(handles.FrameRate.String) * 1000; %make sure current framerate is used
     src.B1BinningHorizontal = '4';
     src.B2BinningVertical = '4';
-
+    
     %setup and display live video feed in preview window
     vidRes = get(handles.vidObj,'VideoResolution');
     nbands = get(handles.vidObj,'NumberOfBands');
@@ -93,17 +94,17 @@ catch
     disp('Camera not available. Check if camera is connected and restart.')
     handles.vidObj = 0;
 end
-CheckPath(handles); %Check for data path, reset date and trialcount
-if any(ismember(handles.driveSelect.String(:,1), 'g')) %start on G drive by default
-    handles.driveSelect.Value = find(ismember(handles.driveSelect.String(:,1), 'g')); 
+if any(ismember(handles.driveSelect.String(:,1), 'g')) %start on G: drive by default
+    handles.driveSelect.Value = find(ismember(handles.driveSelect.String(:,1), 'g'));
 end
-        
+CheckPath(handles); %Check for data path, reset date and trialcount
+
 % UIWAIT makes WidefieldImager wait for user response (see UIRESUME)
 % uiwait(handles.WidefieldImager);
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = WidefieldImager_OutputFcn(hObject, eventdata, handles) 
+function varargout = WidefieldImager_OutputFcn(hObject, eventdata, handles)
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -245,7 +246,7 @@ function AnimalID_Callback(hObject, eventdata, handles)
 
 CheckPath(handles);
 
-    
+
 % --- Executes during object creation, after setting all properties.
 function AnimalID_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to AnimalID (see GCBO)
@@ -307,7 +308,7 @@ else
     else
         outputSingleScan(handles.dNIdevice,false(1,3))
         hObject.BackgroundColor = zeros(1,3);
-            hObject.String = 'LED OFF';
+        hObject.String = 'LED OFF';
     end
 end
 
@@ -342,7 +343,7 @@ else
     saveas(h,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg']) %save snapshot as jpg
     uicontrol('String','Close','Callback','close(gcf)','units','normalized','position',[0 0 0.15 0.07]); %close button
     handles.SnapshotTaken = true; %update snapshot flag
-
+    
     % change status indicator
     if handles.WaitForTrigger.Value && ~isempty(handles.dNIdevice) %Waiting for trigger and snapshot taken
         handles.AcqusitionStatus.BackgroundColor = [0 1 0];
@@ -403,10 +404,10 @@ else
         imshow(snap,'XData',[0 1],'YData',[0 1]); hold on %plot current view
         xVals = [repmat(ROI(1),1,2) repmat(ROI(1)+ROI(3),1,2) ROI(1)];
         yVals = [ROI(2) repmat(ROI(2)+ROI(4),1,2) repmat(ROI(2),1,2)];
-        plot(xVals,yVals,'r','linewidth',2) %plot ROI outline 
+        plot(xVals,yVals,'r','linewidth',2) %plot ROI outline
         savefig(gcf,[handles.path.base 'ROI.fig']) %save ROI figure
         saveas(h,[handles.path.base 'ROI.jpg']) %save ROI as jpg
-        close       
+        close
         
         %update preview
         handles.ROIposition = ROI;
@@ -457,7 +458,7 @@ else
     S(strfind(S,'x'):strfind(S,'x')+1)=[]; %remove 'x' from string
     nRes = str2num(S);
     vidRes = get(handles.vidObj,'VideoResolution');
-
+    
     if length(nRes) == 2 && nRes(1)<=vidRes(2) && nRes(2)<=vidRes(1)
         handles.ROIposition =[0 0 nRes(1) nRes(2)];
         stop(handles.vidObj) %stop camera
@@ -559,19 +560,14 @@ else
         movefile([handles.path.base aFiles(iFiles,:)],[get(handles.DataPath,'String') '\' aFiles(iFiles,:)]); %move files
     end
     save([handles.DataPath.String '\' 'handles.mat'],'handles') %save recorder handles to be able to know all the settings.
-     
-    testPath = [];
-    if handles.RecordMode.Value == 1
-        testPath = 'Y:\smusall\WidefieldImager\Animals';
-    elseif handles.RecordMode.Value == 2
-        testPath = 'Y:\smusall\BpodImager\Animals';
-    end
     
-    % check if churchland server is available and create folder for Bpod data
-    if isdir(testPath)
+    % check if server location is available and create folder for behavioral data
+    % 'open' indicates that this is the folder that relates to the current imaging session
+    if isdir(handles.serverPath.String)
         fPath = get(handles.DataPath,'string');
-        fPath(1:2) = []; fPath = ['Y:\smusall' fPath '_open'];
-        mkdir(fPath); %this is the folder where Bpod can write behavioral data. 'open' indicates that this is the folder that relates to the current imaging session
+        fPath = strrep(fPath,fPath(1:2),handles.serverPath.String); %replace path of local drive with network drive
+        fPath = [fPath '_open']; %add identifier that this session is currently being acquired
+        mkdir(fPath); %this is the server folder where other programs can write behavioral data.
     end
     
     %% start data acquisition
@@ -580,9 +576,8 @@ else
     flushdata(handles.vidObj);
     start(handles.vidObj); %get camera ready to be triggered
     StateCheck = true; %flag to control acquisition mode
-    
     handles.lockGUI.Value = true; handles = lockGUI_Callback(handles.lockGUI, [], handles); %run callback for lock button
-
+    
     % inactivate some parts of the GUI so they dont mess with the recording
     set(findall(handles.ExperimentID, '-property', 'enable'), 'enable', 'off')
     set(findall(handles.ControlPanel, '-property', 'enable'), 'enable', 'inactive')
@@ -590,10 +585,6 @@ else
     handles.sBinning.Enable = 'off';
     handles.driveSelect.Enable = 'off';
     handles.ChangeDataPath.Enable = 'off';
-
-    framesPerFile = str2double(get(handles.FramesPerFile,'string'));
-    expType = handles.RecordMode.String{handles.RecordMode.Value};
-    checker = true;
     
     while StateCheck
         %% check if still recording here
@@ -603,7 +594,7 @@ else
         if ~StateCheck %leave acqusition mode and reset indicators
             disp('Acqusition stopped');
             if exist('fPath','var')
-                movefile(fPath,fPath(1:end-5)); %rename bpod data folder. Later, imaging data should be moved there using the 'Widefield_MoveData' command.
+                movefile(fPath,strrep(fPath, '_open', '')); %rename data folder on the server. Later, imaging data can be moved there using 'Widefield_MoveData'.
             end
             set(handles.WaitForTrigger, 'String' , 'Wait for Trigger OFF')
             set(handles.WaitForTrigger, 'BackgroundColor' , '[1 0 0]')
@@ -621,227 +612,160 @@ else
             return
         end
         
-        if strcmpi(expType,'spontaneous') 
-            %% just get video data and write to file if recording spontanenous data. Wait for trigger otherwise.
-            if checker %flag for first run - execute only once
-                aID = fopen([get(handles.DataPath,'String') '\Analog.dat'], 'wb'); %open binary file for analog data
-                handles.aListen = addlistener(handles.aNIdevice,'DataAvailable', @(src, event)logAnalogData(src,event,aID,handles.AcqusitionStatus)); %listener to stream analog data to disc
-                handles.aNIdevice.startBackground(); %start analog data streaming
-                pause(0.2);
-                
-                handles.vidObj.FramesPerTrigger = Inf; %acquire until stoppped
-                handles.BlueLight.Value = true; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED on
-                trigger(handles.vidObj); %start image acquisition
-                drawnow;
-                
-                set(handles.AcqusitionStatus, 'value', true); %set acquisition status to active
-                set(handles.AcqusitionStatus, 'String' , 'Recording');
-                checker = false;
-            end
+        %% wait for trial trigger
+        data = inputSingleScan(handles.dNIdevice); %trigger lines
+        MaxWait = str2double(get(handles.WaitingTime,'String')); %get maximum waiting time.
+        aTrigger = logical(data(1)); %trigger to start data acqusition
+        
+        if sum(data) == length(data)
+            aTrigger = false; %do not initate if all triggers are high together
+        end
+        
+        if aTrigger
+            set(handles.TrialNr,'String',num2str(str2double(get(handles.TrialNr,'String'))+1)); %increase TrialNr;
             
-            set(handles.TrialNr,'String',num2str(str2double(get(handles.TrialNr,'String'))+1)); %increase TrialNr - indicates number of written files here
-            set(handles.CurrentStatus,'String',['Recording file ' handles.TrialNr.String '; ' int2str(framesPerFile) ' frames/file']); %update status indicator
+            set(handles.CurrentStatus,'String','Recording baseline'); %update status indicator
+            set(handles.AcqusitionStatus, 'value', true); %set acquisition status to active
+            set(handles.AcqusitionStatus, 'String' , 'Recording')
             
-            while handles.vidObj.FramesAvailable < framesPerFile
-                if handles.vidObj.FramesAvailable ~= framesPerFile
-                    drawnow;
-                    if ~logical(get(handles.WaitForTrigger, 'value')) %check for end of recording
-                        
-                        stop(handles.vidObj); %stop image acquisition
-                        [Data,~,Time] = getdata(handles.vidObj,handles.vidObj.FramesAvailable); %collect remaining video data
-                        Time = datenum(cat(1,Time(:).AbsTime)); %collect absolute timestamps
-                        flushdata(handles.vidObj); %clear remaining frames
-                        
-                        handles.BlueLight.Value = false; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED off
-                        drawnow;
-                        
-                        pause(0.2); handles.aNIdevice.stop(); %pause to make sure analog data is written and stop analog object
-                        fclose(aID); %close analog data file
-                        
-                        sID = fopen([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.dat'], 'Wb'); %open binary stimulus file
-                        fwrite(sID,length(Time)+length(size(Data)),'double'); %write number of expected header values
-                        fwrite(sID,Time,'double'); %write absolute timestamps of each frame
-                        fwrite(sID,size(Data),'double'); %write size of image data array
-                        fwrite(sID,Data,'uint16'); %write image data
-                        fclose(sID);
-                        
-                        break
+            aID = fopen([get(handles.DataPath,'String') '\Analog_' get(handles.TrialNr,'String') '.dat'], 'wb'); %open binary file for analog data
+            handles.aListen = addlistener(handles.aNIdevice,'DataAvailable', @(src, event)logAnalogData(src,event,aID,handles.AcqusitionStatus)); %listener to stream analog data to disc
+            handles.aNIdevice.startBackground(); %start analog data streaming
+            pause(0.2);
+            
+            bSize = str2double(handles.BaselineFrames.String)*str2double(handles.FrameRate.String); %number of frames in baseline
+            sSize = str2double(handles.PostStimFrames.String)*str2double(handles.FrameRate.String); %number of frames after stimulus trigger
+            
+            handles.vidObj.FramesPerTrigger = Inf; %acquire until stoppped
+            trigger(handles.vidObj); %start image acquisition
+            handles.BlueLight.Value = true; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED on
+            drawnow;
+            
+            tic; %timer to abort acquisition if stimulus is not received within a certain time limit
+            while handles.AcqusitionStatus.Value %keep running until poststim data is recorded
+                data = inputSingleScan(handles.dNIdevice); %trigger lines
+                if sum(data) == length(data)
+                    stimTrigger = false; %do not proceed if all triggers are high
+                else
+                    stimTrigger = logical(data(2)); %trigger that indicates start of stimulus presentation
+                    stopTrigger = logical(data(3)); %trigger that indicates end of trial. aborts frame acquisition of read before all poststim frames have been collected.
+                end
+                
+                if ~stimTrigger && (toc < MaxWait) && ~stopTrigger %record baseline frames until stimulus trigger occurs or maximum waiting time is reached
+                    if handles.vidObj.FramesAvailable > bSize*2
+                        getdata(handles.vidObj,bSize); %remove unnecessary frames from video capture stream
+                        disp(['Waiting... Removing ' num2str(bSize) ' frames from buffer']);
                     end
                 else
-                    [Data,~,Time] = getdata(handles.vidObj,framesPerFile); %collect video data
-                    Time = datenum(cat(1,Time(:).AbsTime)); %collect absolute timestamps
-                    
-                    sID = fopen([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.dat'], 'Wb'); %open binary stimulus file
-                    fwrite(sID,length(Time)+length(size(Data)),'double'); %write number of expected header values
-                    fwrite(sID,Time,'double'); %write absolute timestamps of each frame
-                    fwrite(sID,size(Data),'double'); %write size of image data array
-                    fwrite(sID,Data,'uint16'); %write image data
-                    fclose(sID);
-                    
-                end
-            end
-            % show average of current trial
-%             baselineAvg = squeeze(mean(Data(:,:,1,1:bIdx),4));
-%             stimAvg = squeeze(mean(Data(:,:,1,bIdx+1:end),4));
-%             stimAvg = (stimAvg-baselineAvg)./baselineAvg;
-%             imagesc(stimAvg,'parent',handles.ImagePlot); axis image;
-%             clear Data Time
-            
-        else  % wait for trial trigger
-            data = inputSingleScan(handles.dNIdevice); %trigger lines
-            MaxWait = str2double(get(handles.WaitingTime,'String')); %get maximum waiting time.
-            aTrigger = logical(data(1)); %trigger to start data acqusition
-            
-            if sum(data) == length(data)
-                aTrigger = false; %do not initate if all triggers are high together
-            end
-            
-            if aTrigger
-                set(handles.TrialNr,'String',num2str(str2double(get(handles.TrialNr,'String'))+1)); %increase TrialNr;
-                
-                set(handles.CurrentStatus,'String','Recording baseline'); %update status indicator
-                set(handles.AcqusitionStatus, 'value', true); %set acquisition status to active
-                set(handles.AcqusitionStatus, 'String' , 'Recording')
-                
-                aID = fopen([get(handles.DataPath,'String') '\Analog_' get(handles.TrialNr,'String') '.dat'], 'wb'); %open binary file for analog data
-                handles.aListen = addlistener(handles.aNIdevice,'DataAvailable', @(src, event)logAnalogData(src,event,aID,handles.AcqusitionStatus)); %listener to stream analog data to disc
-                handles.aNIdevice.startBackground(); %start analog data streaming
-                pause(0.2);
-                
-                bSize = str2double(handles.BaselineFrames.String)*str2double(handles.FrameRate.String); %number of frames in baseline
-                sSize = str2double(handles.PostStimFrames.String)*str2double(handles.FrameRate.String); %number of frames after stimulus trigger
-                
-                handles.vidObj.FramesPerTrigger = Inf; %acquire until stoppped
-                trigger(handles.vidObj); %start image acquisition
-                handles.BlueLight.Value = true; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED on
-                drawnow;
-                
-                tic; %timer to abort acquisition if stimulus is not received within a certain time limit
-                while handles.AcqusitionStatus.Value %keep running until poststim data is recorded
-                    data = inputSingleScan(handles.dNIdevice); %trigger lines
-                    if sum(data) == length(data)
-                        stimTrigger = false; %do not proceed if all triggers are high
-                    else
-                        stimTrigger = logical(data(2)); %trigger that indicates start of stimulus presentation
-                        stopTrigger = logical(data(3)); %trigger that indicates end of trial. aborts frame acquisition of read before all poststim frames have been collected.
-                    end
-                    
-                    if ~stimTrigger && (toc < MaxWait) && ~stopTrigger %record baseline frames until stimulus trigger occurs or maximum waiting time is reached
-                        if handles.vidObj.FramesAvailable > bSize*2
-                            getdata(handles.vidObj,bSize); %remove unnecessary frames from video capture stream
-                            disp(['Waiting... Removing ' num2str(bSize) ' frames from buffer']);
-                        end
-                    else
-                        bIdx = handles.vidObj.FramesAvailable; %check available baseline frames
-                        if toc < MaxWait && ~stopTrigger %record poststim if stimulus trigger was received
-                            set(handles.CurrentStatus,'String','Recording PostStim');drawnow;
-                            FrameWait = true;
-                            while FrameWait %wait until post-stim frames are captured
-                                FrameWait = handles.vidObj.FramesAvailable < (bIdx+sSize); %stop condition
-                                data = inputSingleScan(handles.dNIdevice); %trigger lines
-                                if sum(data) ~= length(data)
-                                    if logical(data(3)) %trigger that indicates if end of trial has been reached
-                                        FrameWait = false;
-                                        disp(['Received stop trigger. Stopped after ' num2str(handles.vidObj.FramesAvailable-bIdx) ' poststim frames']);
-                                    end
+                    bIdx = handles.vidObj.FramesAvailable; %check available baseline frames
+                    if toc < MaxWait && ~stopTrigger %record poststim if stimulus trigger was received
+                        set(handles.CurrentStatus,'String','Recording PostStim');drawnow;
+                        FrameWait = true;
+                        while FrameWait %wait until post-stim frames are captured
+                            FrameWait = handles.vidObj.FramesAvailable < (bIdx+sSize); %stop condition
+                            data = inputSingleScan(handles.dNIdevice); %trigger lines
+                            if sum(data) ~= length(data)
+                                if logical(data(3)) %trigger that indicates if end of trial has been reached
+                                    FrameWait = false;
+                                    disp(['Received stop trigger. Stopped after ' num2str(handles.vidObj.FramesAvailable-bIdx) ' poststim frames']);
                                 end
                             end
-                        elseif stopTrigger
-                            disp('Received stop trigger. No poststim data recorded'); drawnow;
-                        else
-                            disp('Maximum waiting time reached. No poststim data recorded'); drawnow;
                         end
-
-                        % switch off LED and grab some extra dark frames to ensure that blue and violet channels can be separated correctly.
-                        extraFrames = 5; %amount of additional frames to get a black frame - default ist 5.
-                        recPause = (extraFrames + 1) / str2double(handles.FrameRate.String); %pause long enough to get additional frames.
-                        if recPause < 0.2; recPause = 0.2; end %at least 200ms pause
-                        
-                        handles.BlueLight.Value = false; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED off
-                        drawnow;
-                        
-                        tic
-                        pause(recPause); handles.aNIdevice.stop(); %pause to make sure analog data is written and stop analog object
-                        fclose(aID); %close analog data file
-                        stop(handles.vidObj); %stop video capture
-
-                        if (bIdx-bSize) > 0
-                            getdata(handles.vidObj,bIdx-bSize); %remove unnecessary frames from video object
-                            disp(['Trial finished... Removing ' num2str(bIdx-bSize) ' frames from buffer']);
-                        end
-                        
-                        if handles.vidObj.FramesAvailable < (bSize + sSize + extraFrames)
-                            [Data,~,Time] = getdata(handles.vidObj, handles.vidObj.FramesAvailable); %collect available video data
-                        else
-                            [Data,~,Time] = getdata(handles.vidObj,bSize + sSize + extraFrames); %collect requested video data
-                        end
-                        Time = datenum(cat(1,Time(:).AbsTime)); %collect absolute timestamps
-                        
-                        if bIdx < bSize %if baseline has less frames as set in the GUI
-                            disp(['Collected only ' num2str(bIdx) ' instead of ' num2str(bSize) ' frames in the baseline - check settings'])
-                        else
-                            bIdx = bSize;
-                        end
-                        
-                        set(handles.AcqusitionStatus, 'value', false); %stop recording
-                        set(handles.AcqusitionStatus, 'String' , 'Waiting')
-                        delete(handles.aListen); %delete listener for analog data recording
-                        
+                    elseif stopTrigger
+                        disp('Received stop trigger. No poststim data recorded'); drawnow;
+                    else
+                        disp('Maximum waiting time reached. No poststim data recorded'); drawnow;
                     end
+                    
+                    % switch off LED and grab some extra dark frames to ensure that blue and violet channels can be separated correctly.
+                    extraFrames = 5; %amount of additional frames to get a black frame - default ist 5.
+                    recPause = (extraFrames + 1) / str2double(handles.FrameRate.String); %pause long enough to get additional frames.
+                    if recPause < 0.2; recPause = 0.2; end %at least 200ms pause
+                    
+                    handles.BlueLight.Value = false; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED off
+                    drawnow;
+                    
+                    tic
+                    pause(recPause); handles.aNIdevice.stop(); %pause to make sure analog data is written and stop analog object
+                    fclose(aID); %close analog data file
+                    stop(handles.vidObj); %stop video capture
+                    
+                    if (bIdx-bSize) > 0
+                        getdata(handles.vidObj,bIdx-bSize); %remove unnecessary frames from video object
+                        disp(['Trial finished... Removing ' num2str(bIdx-bSize) ' frames from buffer']);
+                    end
+                    
+                    if handles.vidObj.FramesAvailable < (bSize + sSize + extraFrames)
+                        [Data,~,Time] = getdata(handles.vidObj, handles.vidObj.FramesAvailable); %collect available video data
+                    else
+                        [Data,~,Time] = getdata(handles.vidObj,bSize + sSize + extraFrames); %collect requested video data
+                    end
+                    Time = datenum(cat(1,Time(:).AbsTime)); %collect absolute timestamps
+                    
+                    if bIdx < bSize %if baseline has less frames as set in the GUI
+                        disp(['Collected only ' num2str(bIdx) ' instead of ' num2str(bSize) ' frames in the baseline - check settings'])
+                    else
+                        bIdx = bSize;
+                    end
+                    
+                    set(handles.AcqusitionStatus, 'value', false); %stop recording
+                    set(handles.AcqusitionStatus, 'String' , 'Waiting')
+                    delete(handles.aListen); %delete listener for analog data recording
+                    
                 end
-                
-                %% Save data to folder and clear
-                set(handles.CurrentStatus,'String','Saving data');
-                disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(bIdx) '; Poststim Frames: ' num2str(size(Data,4)-(bIdx + extraFrames)) '; Extra Frames: ' num2str(extraFrames) '; Saving data ...'])
-                
-                sID = fopen([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.dat'], 'Wb'); %open binary stimulus file
-                fwrite(sID,length(Time)+length(size(Data)),'double'); %write number of expected header values
-                fwrite(sID,Time,'double'); %write absolute timestamps of each frame
-                fwrite(sID,size(Data),'double'); %write size of image data array
-                fwrite(sID,Data,'uint16'); %write image data
-                fclose(sID);
-                
-                % show average of current trial
-                baselineAvg = squeeze(mean(Data(:,:,1,1:bIdx),4));
-                stimAvg = squeeze(mean(Data(:,:,1,bIdx+1:end),4));
-                stimAvg = (stimAvg-baselineAvg)./baselineAvg;
-                imagesc(stimAvg,'parent',handles.ImagePlot); axis image;
-                clear Data Time
-                
-                toc
-                disp('==================================================');
-                
-                %% delete analog recording session and create a new one to reset 'TriggerTime' property
-                delete(handles.aNIdevice);
-                handles.aNIdevice = daq.createSession('ni'); %object for communication with NI device - analog lines
-                handles.aNIdevice.IsContinuous = true; %set to continous acquisition
-                handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
-                
-                if handles.RecordMode.Value == 1 || handles.RecordMode.Value == 3
-                    ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [0:3 5 6], 'Voltage');
-                    ch(2).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-                    ch(3).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-                    ch(5).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-                    ch(6).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-                elseif handles.RecordMode.Value == 2
-                    ch = addAnalogInputChannel(handles.aNIdevice,'Dev1', [0:3 6 7], 'Voltage');
-                    ch(3).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
-                    ch(4).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
-                    ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [5 6], 'Voltage'); %recording of blue light trigger
-                    ch(1).TerminalConfig = 'SingleEnded';
-                    ch(2).TerminalConfig = 'SingleEnded';
-                end
-                
-                start(handles.vidObj); %get camera ready to be triggered again
-                set(handles.CurrentStatus,'String','Waiting for trigger');
-                
             end
+            
+            %% Save data to folder and clear
+            set(handles.CurrentStatus,'String','Saving data');
+            disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(bIdx) '; Poststim Frames: ' num2str(size(Data,4)-(bIdx + extraFrames)) '; Extra Frames: ' num2str(extraFrames) '; Saving data ...'])
+            
+            sID = fopen([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.dat'], 'Wb'); %open binary stimulus file
+            fwrite(sID,length(Time)+length(size(Data)),'double'); %write number of expected header values
+            fwrite(sID,Time,'double'); %write absolute timestamps of each frame
+            fwrite(sID,size(Data),'double'); %write size of image data array
+            fwrite(sID,Data,'uint16'); %write image data
+            fclose(sID);
+            
+            % show average of current trial
+            baselineAvg = squeeze(mean(Data(:,:,1,1:bIdx),4));
+            stimAvg = squeeze(mean(Data(:,:,1,bIdx+1:end),4));
+            stimAvg = (stimAvg-baselineAvg)./baselineAvg;
+            imagesc(stimAvg,'parent',handles.ImagePlot); axis image;
+            clear Data Time
+            
+            toc
+            disp('==================================================');
+            
+            %% delete analog recording session and create a new one to reset 'TriggerTime' property
+            delete(handles.aNIdevice);
+            handles.aNIdevice = daq.createSession('ni'); %object for communication with NI device - analog lines
+            handles.aNIdevice.IsContinuous = true; %set to continous acquisition
+            handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
+            
+            if handles.RecordMode.Value == 1 || handles.RecordMode.Value == 3
+                ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [0:3 5 6], 'Voltage');
+                ch(2).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+                ch(3).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+                ch(5).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+                ch(6).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+            elseif handles.RecordMode.Value == 2
+                ch = addAnalogInputChannel(handles.aNIdevice,'Dev1', [0:3 6 7], 'Voltage');
+                ch(3).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
+                ch(4).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
+                ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [5 6], 'Voltage'); %recording of blue light trigger
+                ch(1).TerminalConfig = 'SingleEnded';
+                ch(2).TerminalConfig = 'SingleEnded';
+            end
+            
+            start(handles.vidObj); %get camera ready to be triggered again
+            set(handles.CurrentStatus,'String','Waiting for trigger');
+            
         end
     end
 end
 
 
-   
+
 function PostStimFrames_Callback(hObject, eventdata, handles)
 % hObject    handle to PostStimFrames (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -919,14 +843,9 @@ if (cPath.getFreeSpace / 2^30) < sizLim && length(handles.driveSelect.String) > 
     end
 end
 
-% find basepath and look for present animals, experiment types and past recordings
-if handles.RecordMode.Value == 1 || handles.RecordMode.Value == 3 
-    handles.path.base = [handles.driveSelect.String(handles.driveSelect.Value,:) '\WidefieldImager\']; %get path of imaging code
-elseif handles.RecordMode.Value == 2
-    handles.path.base = [handles.driveSelect.String(handles.driveSelect.Value,:) '\BpodImager\']; %get path of imaging code
-else
-    error('Unknown recording mode');
-end
+% set basepath and look for present animals, experiment types and past recordings
+handles.path.base = [handles.driveSelect.String(handles.driveSelect.Value,:) filesep ...
+    strtrim(handles.RecordMode.String{handles.RecordMode.Value}) filesep]; %set path of imaging code
 
 if ~isdir([handles.path.base 'Animals']) %check for animal path to save data
     mkdir([handles.path.base 'Animals']) %create folder if required
@@ -1022,7 +941,7 @@ function logAnalogData(src, evt, fid, flag)
 % false. Flag should be a handle to a control that contains a logical
 % value.
 %
-% Example for addding function to a listener when running analog through StartBackground:           
+% Example for addding function to a listener when running analog through StartBackground:
 % handles.aListen = handles.aNIdevice.addlistener('DataAvailable', @(src, event)logAnalogData(src,event,aID,handles.AcqusitionStatus)); %listener to stream analog data to disc
 
 
@@ -1030,14 +949,14 @@ if src.IsRunning %only execute while acquisition is still active
     if evt.TimeStamps(1) == 0
         fwrite(fid,3,'double'); %indicate number of single values in the header
         fwrite(fid,evt.TriggerTime,'double'); %write time of acquisition onset on first run
-        fwrite(fid,size(evt.Data,2)+1,'double'); %write number of recorded analog channels + timestamps      
-        fwrite(fid,inf,'double'); %write number of values to read (set to inf since absolute recording duration is unknown at this point)     
+        fwrite(fid,size(evt.Data,2)+1,'double'); %write number of recorded analog channels + timestamps
+        fwrite(fid,inf,'double'); %write number of values to read (set to inf since absolute recording duration is unknown at this point)
     end
     
     data = [evt.TimeStamps*1000, evt.Data*1000]' ; %convert time to ms and voltage to mV
     fwrite(fid,uint16(data),'uint16');
-%     plot(data(1,:),data(2:end,:))
-
+    %     plot(data(1,:),data(2:end,:))
+    
     if ~logical(get(flag, 'value')) %check if acqusition is still active
         src.stop(); %stop recording
     end
@@ -1055,7 +974,7 @@ function lightMode_Callback(hObject, eventdata, handles)
 
 BlueLight_Callback(handles.BlueLight, [], handles) %switch LED
 
-    
+
 % --- Executes during object creation, after setting all properties.
 function lightMode_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to lightMode (see GCBO)
@@ -1084,14 +1003,8 @@ if ~isempty(newMouse)
     
     dPrompt = {'Enter experiment ID'};
     pName = 'New experiment';
-    if strcmpi(strtrim(handles.RecordMode.String{handles.RecordMode.Value}),'Mapping')
-        newExp = inputdlg(dPrompt,pName,1,{'PhaseMap'});
-    elseif strcmpi(strtrim(handles.RecordMode.String{handles.RecordMode.Value}),'Bpod')
-        newExp = inputdlg(dPrompt,pName,1,{'SpatialDisc'});
-    else
-        newExp = inputdlg(dPrompt,pName,1,{'New Experiment'});
-    end
     
+    newExp = inputdlg(dPrompt,pName,1,{[strtrim(handles.RecordMode.String{handles.RecordMode.Value}) 'Paradigm']});
     mkdir([handles.path.base 'Animals' filesep newMouse{1} filesep newExp{1}])
     
     handles = CheckPath(handles); %Check for data path, reset date and trialcount
@@ -1220,19 +1133,12 @@ function handles = RecordMode_Callback(hObject, eventdata, handles)
 handles.ExperimentType.Value = 1;
 handles.AnimalID.Value = 1;
 
-if hObject.Value == 1 %set standard settings for phase mapping
+if hObject.Value == 1 %set standard settings for widefield mapping
     handles.BaselineFrames.String = '2';
     handles.PostStimFrames.String = '23';
-elseif  hObject.Value == 2 %set standard settings for bpod recording
+elseif  hObject.Value == 2 %set standard settings for behavioral recording
     handles.BaselineFrames.String = '3.25';
     handles.PostStimFrames.String = '6';
-elseif  hObject.Value == 3 %set paradigm to 'Spont' if doing spontaneous recording
-    if ~isdir([handles.path.base 'Animals' filesep handles.AnimalID.String{handles.AnimalID.Value} filesep 'Spont'])
-        mkdir([handles.path.base 'Animals' filesep handles.AnimalID.String{handles.AnimalID.Value} filesep 'Spont']);
-    end
-    handles = CheckPath(handles); %Check for data path, reset date and trialcount
-    handles.ExperimentType.Value = find(ismember(handles.ExperimentType.String, 'Spont'));
-    CheckPath(handles);
 end
 CheckPath(handles);
 
@@ -1250,7 +1156,7 @@ else
     handles.aNIdevice.IsContinuous = true; %set to continous acquisition
     handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
     
-    if hObject.Value == 1 || hObject.Value == 3 %set standard settings for widefield mapping
+    if hObject.Value == 1 %set standard settings for widefield mapping
         addDigitalChannel(handles.dNIdevice,'Dev3','port1/line0:2','OutputOnly'); %output channels for blue, violet and mixed light (1.0:blue, 1.1:violet, 1.2:mixed)
         addDigitalChannel(handles.dNIdevice,'Dev3','port0/line0:2','InputOnly'); %input channels to trigger data acquisition and control timing of animal behavior (0.2: trial start, 0.3: stim on)
         
@@ -1260,12 +1166,12 @@ else
         ch(5).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
         ch(6).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
         
-    elseif hObject.Value == 2 %set standard settings for bpod recording
+    elseif hObject.Value == 2 %set standard settings for behavioral recording
         addDigitalChannel(handles.dNIdevice,'Dev3','port1/line0:2','OutputOnly'); %output channels for blue, violet and mixed light (1.0:blue, 1.1:violet, 1.2:mixed)
         addDigitalChannel(handles.dNIdevice,'Dev1','port0/line0:2','InputOnly'); %input channels to trigger data acquisition and control timing of animal behavior. 0.0 = TrialOn; 0.1 = StimOn; 0.2 = StopTrial
         
         ch = addAnalogInputChannel(handles.aNIdevice,'Dev1', [0:3 6 7], 'Voltage');
-        ch(3).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording 
+        ch(3).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
         ch(4).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
         ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [5 6], 'Voltage'); %recording of blue light trigger
         ch(1).TerminalConfig = 'SingleEnded';
@@ -1286,20 +1192,18 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
-
-function FramesPerFile_Callback(hObject, eventdata, handles)
-% hObject    handle to FramesPerFile (see GCBO)
+function serverPath_Callback(hObject, eventdata, handles)
+% hObject    handle to serverPath (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of FramesPerFile as text
-%        str2double(get(hObject,'String')) returns contents of FramesPerFile as a double
+% Hints: get(hObject,'String') returns contents of serverPath as text
+%        str2double(get(hObject,'String')) returns contents of serverPath as a double
 
 
 % --- Executes during object creation, after setting all properties.
-function FramesPerFile_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to FramesPerFile (see GCBO)
+function serverPath_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to serverPath (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 
@@ -1352,5 +1256,3 @@ elseif hObject.Value == 1
     handles.WaitForTrigger.Enable = 'off';
     hObject.String = 'Locked';
 end
-    
-    

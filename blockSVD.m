@@ -66,7 +66,6 @@ trials = sort(trials);
 if size(rawCheck,1) ~= size(analogCheck,1)
     warning('Unequal number of imaging and analog data files.')
 end
-fileCnt = 10;
 
 %% get reference images for motion correction
 [blueData,~,hemoData] = splitChannels(opts,trials(1));
