@@ -197,10 +197,8 @@ for iBlocks = 1 : nrBlocks
     allBlock(:,:,2) = bsxfun(@rdivide, allBlock(:,:,2), hemoAvg(blockInd{iBlocks}));
     
     % run SVD on current block
-    [bU{iBlocks}, s, bV{iBlocks}] = svd(reshape(allBlock,size(allBlock,1),[]), 'econ');
+    [bU{iBlocks}, s, bV{iBlocks}] = fsvd(reshape(allBlock,size(allBlock,1),[]),opts.blockDims);
     bV{iBlocks} = s * bV{iBlocks}'; %multiply S into V, so only U and V from here on
-    bU{iBlocks} = bU{iBlocks}(:, 1:opts.blockDims); %reduce number of components
-    bV{iBlocks} = bV{iBlocks}(1:opts.blockDims, :); %reduce number of components
     
     if rem(iBlocks, round(nrBlocks / 5)) == 0
         fprintf(1, 'Loading block %d out of %d\n', iBlocks, nrBlocks);

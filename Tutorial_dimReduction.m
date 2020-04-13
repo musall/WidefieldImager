@@ -1,7 +1,7 @@
 %construct path to data folder and give some basic info
 opts.fPath = [pwd filesep 'DemoRec' filesep]; %path to demo recording
 opts.fName = 'Frames'; %name of imaging data files.
-opts.nrBlocks = 49; %nr of blocks for svd
+opts.nrBlocks = 25; %nr of blocks for svd
 opts.overlap = 20; % pixel overlap between blocks
 opts.dimCnt = 200; %nr of components in the final dataset
 opts.blockDims = 20; %number of dimensions from SVD per block
