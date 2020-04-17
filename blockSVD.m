@@ -1,4 +1,4 @@
-function [bV, bU, blockInd, frameCnt, stimTime, blueAvg, hemoAvg] = blockSVD(opts)
+function [bV, bU, blockInd, frameCnt, stimTime, fAlign, blueAvg, hemoAvg] = blockSVD(opts)
 % Code to convert raw data from a given imaging experiment to a
 % low-dimensional representation. Imaging data consists of two channels 
 % with either blue (1) or violet (2) illumination.
@@ -25,6 +25,8 @@ function [bV, bU, blockInd, frameCnt, stimTime, blueAvg, hemoAvg] = blockSVD(opt
 %           trial number, second row is number of frames.
 % stimTime: Indicates the first blue frame after stimulus onset in each
 %           trial. Use this to align with behavior.
+% fAlign:   Indicates that there was a potential issue with alignment in
+%           this trial. Use this to rject faulty trials if needed.
 % blueAvg: Mean image of the blue channel. Can be used to get vessel image
 %          or determine size of a single frame in the widefield data.
 % hemoAvg: Same as 'blueAvg' for the violet channel.
@@ -47,10 +49,11 @@ if nrBlocks ~= floor(sqrt(nrBlocks))^2
     nrBlocks = floor(sqrt(nrBlocks))^2;
 end
 
-disp('==============='); tic;
+disp('===============');
 disp(opts.fPath); 
 fprintf('Sampling rate: %dHz; Using %d blocks for SVD\n', opts.frameRate,nrBlocks);
 disp(datestr(now));
+tic;
 
 %% check if rawData files are present and get trialnumbers for all files
 rawCheck = dir([opts.fPath filesep opts.fName '*dat']);
@@ -75,6 +78,11 @@ save([opts.fPath 'blueRef.mat'],'blueRef');
 hemoData = single(squeeze(hemoData));
 hemoRef = fft2(median(hemoData,3)); %violet reference for alignment
 save([opts.fPath 'hemoRef.mat'],'hemoRef');
+
+if opts.useGPU
+    blueRef = gpuArray(blueRef);
+    hemoRef = gpuArray(hemoRef);
+end
 
 %% get index for individual blocks
 indImg = reshape(1:numel(blueRef),size(blueRef)); %this is an 'image' with the corresponding indices
@@ -113,14 +121,22 @@ end
 
 frameCnt = NaN(2,fileCnt, 'single'); %use thise to report how many frames were collected in each trial
 stimTime = NaN(1,fileCnt, 'single'); %use thise to report at which frame the stimulus was presented in a given trial (blue channel)
+fAlign = false(1,fileCnt); %use thise to report if there were potential issues with frame alignment
+blueBlocks = zeros(1,nrBlocks);
+hemoBlocks = zeros(1,nrBlocks);
 for iTrials = 1:fileCnt
-
-    [blueData,blueTimes,hemoData,hemoTimes, stimTime(iTrials)] = splitChannels(opts,trials(iTrials));
+    
+    [blueData,blueTimes,hemoData,hemoTimes,stimTime(iTrials),fAlign(iTrials)] = splitChannels(opts,trials(iTrials));
     frameCnt(1,iTrials) = trials(iTrials); %trialNr
     frameCnt(2,iTrials) = size(blueData,3); %nr of frames
     
     if size(blueData,3) ~= size(hemoData,3)
         error(['Trial ' int2str(trials(iTrials)) ': Blue and hemo channels have uneven framecount'])
+    end
+    
+    if opts.useGPU
+        blueData = gpuArray(blueData);
+        hemoData = gpuArray(hemoData);
     end
     
     %perform image alignment for both channels
@@ -131,6 +147,8 @@ for iTrials = 1:fileCnt
         [~, temp] = dftregistration(hemoRef, fft2(hemoData(:, :, iFrames)), 10);
         hemoData(:, :, iFrames) = abs(ifft2(temp));
     end
+    blueData = gather(blueData);
+    hemoData = gather(hemoData);
     
     % keep baseline average for each trial
     blueAvg(:,:,iTrials) = mean(blueData(:,:,1:opts.baselineFrames),3);
@@ -144,18 +162,30 @@ for iTrials = 1:fileCnt
         fprintf(1, 'Loading session %d out of %d\n', iTrials,length(trials));
     end
     
+    % save data in individual blocks. single file for each trial/block. Will delete those later.
     blueData = reshape(blueData, [], size(blueData,3));
     hemoData = reshape(hemoData, [], size(hemoData,3));
-    
-    % save data in individual blocks. single file for each trial/block. Will delete those later.
     for iBlocks = 1:nrBlocks
+        if iTrials == 1
+            blueBlocks(iBlocks) = fopen([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '.dat'], 'Wb');
+            hemoBlocks(iBlocks) = fopen([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '.dat'], 'Wb');
+        end
+
         bBlock = blueData(blockInd{iBlocks}, :);
         hBlock = hemoData(blockInd{iBlocks}, :);
-        save([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '_Trial' num2str(iTrials)], 'bBlock', '-v6');
-        save([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '_Trial' num2str(iTrials)], 'hBlock', '-v6');
+        fwrite(blueBlocks(iBlocks), bBlock,'uint16'); %write data from current trial to block file
+        fwrite(hemoBlocks(iBlocks), hBlock,'uint16'); %write data from current trial to block file
+        
+        if iTrials == fileCnt
+            fclose(blueBlocks(iBlocks));
+            fclose(hemoBlocks(iBlocks));            
+        end
     end
+    clear blueData hemoData blueTimes hemoTimes
 end
-clear blueData hemoData blueTimes hemoTiems blueRef hemoRef 
+disp('Binary files created!'); toc;
+
+clear blueRef hemoRef 
 save([opts.fPath 'trials.mat'],'trials'); %save trials so order of analysis is consistent
 
 %save frametimes for blue/hemo trials
@@ -174,38 +204,37 @@ hemoAvg = mean(single(hemoAvg),3);
 bU = cell(nrBlocks,1); bV = cell(nrBlocks,1);
 for iBlocks = 1 : nrBlocks
     
-    % rebuild current block from all trials
-    Cnt = 0;
-    allBlock = NaN(size(blockInd{iBlocks},1), size(cat(1,blueFrameTimes{:}),1), 2, 'single');
-    for iTrials = 1:fileCnt
-        load([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '_Trial' num2str(iTrials)], 'bBlock');
-        load([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '_Trial' num2str(iTrials)], 'hBlock');
+   
+    % load current block
+    fID(1) = fopen([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '.dat'], 'r');
+    fID(2) = fopen([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '.dat'], 'r');
         
-        allBlock(:, Cnt + (1:size(bBlock,2)), 1) = single(bBlock);
-        allBlock(:, Cnt + (1:size(bBlock,2)), 2) = single(hBlock);
-        Cnt = Cnt + size(bBlock,2);
-        
-        % delete block files
-        delete([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '_Trial' num2str(iTrials) '.mat']);
-        delete([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '_Trial' num2str(iTrials) '.mat']);
-    end
+    allBlock = NaN(size(blockInd{iBlocks},1)* size(cat(1,blueFrameTimes{:}),1), 2, 'single');
+    allBlock(:,1) = fread(fID(1), 'uint16'); fclose(fID(1));
+    allBlock(:,2) = fread(fID(2), 'uint16'); fclose(fID(2));
     
-    % compute dF/F   
+    delete([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '.dat']);
+    delete([opts.fPath 'blockData' filesep 'hemoBlock' num2str(iBlocks) '.dat']);
+    
+    % compute dF/F
+    allBlock = reshape(allBlock, size(blockInd{iBlocks},1), size(cat(1,blueFrameTimes{:}),1), 2);
     allBlock(:,:,1) = bsxfun(@minus, allBlock(:,:,1), blueAvg(blockInd{iBlocks}));
     allBlock(:,:,1) = bsxfun(@rdivide, allBlock(:,:,1), blueAvg(blockInd{iBlocks}));
     allBlock(:,:,2) = bsxfun(@minus, allBlock(:,:,2), hemoAvg(blockInd{iBlocks}));
     allBlock(:,:,2) = bsxfun(@rdivide, allBlock(:,:,2), hemoAvg(blockInd{iBlocks}));
     
     % run SVD on current block
-    [bU{iBlocks}, s, bV{iBlocks}] = fsvd(reshape(allBlock,size(allBlock,1),[]),opts.blockDims);
-    bV{iBlocks} = s * bV{iBlocks}'; %multiply S into V, so only U and V from here on
+    allBlock = reshape(allBlock,size(allBlock,1),[])'; %combine channels and transpose (this is faster if there are more frames as pixels)
+    [bV{iBlocks}, s, bU{iBlocks}] = fsvd(allBlock,opts.blockDims); %U and V are flipped here because we transpoed the input.
+    bV{iBlocks} = gather(s * bV{iBlocks}'); %multiply S into V, so only U and V from here on
+    bU{iBlocks} = gather(bU{iBlocks});
+    clear allBlock
     
     if rem(iBlocks, round(nrBlocks / 5)) == 0
-        fprintf(1, 'Loading block %d out of %d\n', iBlocks, nrBlocks);
+        fprintf(1, 'Converting block %d out of %d\n', iBlocks, nrBlocks);
     end
 end
 
 % save blockwise SVD data from both channels
 save([opts.fPath 'bV.mat'], 'bU', 'bV', 'blockInd', 'opts', '-v7.3');
-toc;
-
+disp('Blockwise SVD complete'); toc;

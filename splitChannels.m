@@ -15,12 +15,14 @@ Analog = double(Analog);
 cFile = [opts.fPath filesep opts.fName '_' num2str(trialNr) '.dat']; %current file to be read
 [header,data] = Widefield_LoadData(cFile,'Frames'); %load video data
 
+
 %reshape data to compute mean frame intensities
 dSize = size(data);
 data = reshape(data,[],dSize(end));
-temp = zscore(median(single(data)));
+temp = zscore(mean(single(data)));
 data = squeeze(reshape(data,dSize));
 frameTimes = header(1:end-length(dSize)) * (86400*1e3); %extract frame times from header and convert to millisecond timestamps
+
 
 bFrame = find(temp < min(temp)*.75); %index for black frames
 if bFrame(1) == 1 %if first frame is dark, remove initial frames from data until LEDs are on
@@ -32,11 +34,12 @@ if bFrame(1) == 1 %if first frame is dark, remove initial frames from data until
     frameTimes(1:cIdx) = [];
 end
 
+
 %determine imaging rate - either given as input or determined from data
 if isfield(opts,'frameRate')
     sRate = opts.frameRate;
 else
-    sRate = 1000/(median(diff(frameTimes))*2);
+    sRate = 1000/(mean(diff(frameTimes))*2);
 end
 
 % check if pre- and poststim are given. use all frames if not.
@@ -61,6 +64,7 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         warning(['Failed to find trigger signals. lastBlue: ' num2str(lastBlue) '; lastHemo: ' num2str(lastHemo) '; trialNr: ' num2str(trialNr)])
     end
    
+   
     bFrame = find(temp < min(temp)*.75); %index for first black frame (assuming the last frame is really a dark frame)
     bFrame(bFrame < round(size(temp,2) / 2)) = []; %make sure black frame is in the second half of recording.
     bFrame = bFrame(1);
@@ -82,6 +86,7 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         lastFrame = size(Analog,2) - lastHemo; %index for end of last frame
     end
     
+    
     frameTimes = (frameTimes - frameTimes(bFrame - 1)) + lastFrame; %realign frameTime based on time of last non-dark frame
     blueInd = blueInd(frameTimes < size(Analog,2));
     blueInd(bFrame - 1:end) = []; %exclude black and last non-black frame
@@ -91,6 +96,7 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
     
     blueData = data(:,:,blueInd);
     hemoData = data(:,:,~blueInd);
+    
     
     % find all triggers in stim line and choose the one that is on the longest as the true stimulus trigger
     % apparently this line can be contaminated by noise
@@ -126,6 +132,7 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
             lastHemoIdx = hemoStim + opts.postStim - 1;
         end
         
+        
         %make sure both channels have equal length
         chanDiff = length(blueStim - opts.preStim : lastBlueIdx) - length(hemoStim - opts.preStim : lastHemoIdx);
         if chanDiff < 0 %less blue frames, cut hemo frame
@@ -145,6 +152,7 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         
         hemoTimes = hemoTimes(hemoStim - opts.preStim : lastHemoIdx); %get hemo frame times before and after stimOn
         hemoData = hemoData(:,:,hemoStim - opts.preStim : lastHemoIdx); %get hemo frame data before and after stim on
+        
     else
         %make sure both channels have equal length
         chanDiff = size(blueData,3) - size(hemoData,3);
@@ -166,7 +174,7 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
     end
     
     %make sure each frame has a corresponding trigger signal
-    frameDiff = floor(median(diff(frameTimes)));
+    frameDiff = floor(mean(diff(frameTimes)));
     frameJitter = sum(diff(frameTimes) > (frameDiff + 1));
     frameDiff = frameDiff - (1 - rem(frameDiff,2)); %make sure, inter-frame interval is uneven number
     blueInd = bsxfun(@minus, repmat(round(blueTimes),1,frameDiff),-floor(frameDiff/2):floor(frameDiff/2))'; %get index for each frameTime and get half the IFI before and after frame was acquired to check trigger signal.
@@ -198,7 +206,7 @@ else
     hemoTimes = NaN;
     falseAlign = true;
     stimOn = [];
-    sRate = 1000/(median(diff(frameTimes)));
+    sRate = 1000/(mean(diff(frameTimes)));
 end
 
 %% plot result if requested

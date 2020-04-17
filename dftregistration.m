@@ -1,4 +1,4 @@
-function [output, Greg] = Widefield_dftregistration(buf1ft,buf2ft,usfac)
+function [output, Greg] = dftregistration(buf1ft,buf2ft,usfac)
 % function [output Greg] = dftregistration(buf1ft,buf2ft,usfac);
 % Efficient subpixel image registration by crosscorrelation. This code
 % gives the same precision as the FFT upsampled cross correlation in a
@@ -91,7 +91,7 @@ else
     mlarge=m*2;
     nlarge=n*2;
 
-    CC=zeros(mlarge,nlarge);
+    CC=zeros(mlarge,nlarge, class(buf1ft));
     CC(m+1-fix(m/2):m+1+fix((m-1)/2),n+1-fix(n/2):n+1+fix((n-1)/2)) = ...
         fftshift(buf1ft).*conj(fftshift(buf2ft));
   

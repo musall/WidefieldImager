@@ -21,20 +21,13 @@ function [U,S,V] = fsvd(A, k, i, usePowerMethod)
 %   See also SVD.
 % 
 %   Copyright 2011 Ismail Ari, http://ismailari.com.
+%
+%  Modified by Simon Musall to support gpuArrays. 4/17/2020.
 
     if nargin < 3
         i = 1;
     end
-
-    % Take (conjugate) transpose if necessary. It makes H smaller thus
-    % leading the computations to be faster
-    if size(A,1) < size(A,2)
-        A = A';
-        isTransposed = true;
-    else
-        isTransposed = false;
-    end
-
+    
     n = size(A,2);
     l = k + 2;
 
@@ -42,51 +35,44 @@ function [U,S,V] = fsvd(A, k, i, usePowerMethod)
     % mean and unit variance
     G = randn(n,l);
 
-
     if nargin >= 4 && usePowerMethod
         % Use only the given exponent
-        H = A*G;
+        H = (A*G);
         for j = 2:i+1
-            H = A * (A'*H);
+            H = (A * (A'*H));
         end
     else
         % Compute the m×l matrices H^{(0)}, ..., H^{(i)}
         % Note that this is done implicitly in each iteration below.
         H = cell(1,i+1);
-        H{1} = A*G;
+        H{1} = (A*G);
         for j = 2:i+1
-            H{j} = A * (A'*H{j-1});
+            H{j} = (A * (A'*H{j-1}));
         end
 
         % Form the m×((i+1)l) matrix H
-        H = cell2mat(H);
+        H = cat(2,H{:});
     end
 
     % Using the pivoted QR-decomposiion, form a real m×((i+1)l) matrix Q
     % whose columns are orthonormal, s.t. there exists a real
     % ((i+1)l)×((i+1)l) matrix R for which H = QR.  
     % XXX: Buradaki column pivoting ile yap?lmayan hali.
-    [Q,~] = qr(H,0);
+    [Q,~] = qr(H,0); 
 
     % Compute the n×((i+1)l) product matrix T = A^T Q
-    T = A'*Q;
+    T = A'*Q; 
 
     % Form an SVD of T
-    [Vt, St, W] = svd(T,'econ');
+    [Vt, St, W] = svd(T,'econ'); 
 
     % Compute the m×((i+1)l) product matrix
     Ut = Q*W;
 
     % Retrieve the leftmost m×k block U of Ut, the leftmost n×k block V of
     % Vt, and the leftmost uppermost k×k block S of St. The product U S V^T
-    % then approxiamtes A. 
-
-    if isTransposed
-        V = Ut(:,1:min(k,size(Ut,2)));
-        U = Vt(:,1:min(k,size(Vt,2)));     
-    else
-        U = Ut(:,1:min(k,size(Ut,2)));
-        V = Vt(:,1:min(k,size(Vt,2)));
-    end
+    % then approxiamtes A.
+    U = Ut(:,1:min(k,size(Ut,2)));
+    V = Vt(:,1:min(k,size(Vt,2)));
     S = St(1:min(k,size(St,1)),1:min(k,size(St,2)));
 end

@@ -7,6 +7,7 @@ opts.dimCnt = 200; %nr of components in the final dataset
 opts.blockDims = 20; %number of dimensions from SVD per block
 opts.stimLine = 6; %analog line that contains stimulus trigger.
 opts.trigLine = [8 9]; %analog lines for blue and violet light triggers.
+opts.useGPU = true; %flag to use GPU acceleration
 
 % check for handles file from WidefieldImager to get frame rate.
 try
@@ -19,9 +20,7 @@ end
 opts.baselineFrames = 1:opts.frameRate; %1s baseline. this is used for dF/F analysis later.
 
 %% run dimensionality reduction
-tic;
-[bV, bU, blockInd, frameCnt, stimTime, snap] = blockSVD(opts); %this loads raw data and does the first blockwise SVD
-toc;
+[bV, bU, blockInd, frameCnt, stimTime, fAlign, snap] = blockSVD(opts); %this loads raw data and does the first blockwise SVD
 
 %% create whole-frame components
 %merge dimensions if bV is in dims x trials x frames format
@@ -60,6 +59,7 @@ blockU = bsxfun(@rdivide, blockU, edgeNorm);
 dSize = size(blockU);
 blockU = reshape(blockU,[],dSize(end)); %make sure blockU is in pixels x componens
 U = blockU * nU; %make new U with framewide components
+disp('Second SVD complete'); toc;
 
 %% do hemodynamic correction
 nV = reshape(nV, size(nV,1), [], 2); % split channels
@@ -68,6 +68,7 @@ U = reshape(U,size(snap,1),size(snap,2),[]); %reshape to frame format
 % do hemodynamic correction
 [Vc, regC, T, hemoVar] = SvdHemoCorrect(U, nV(:,:,1), nV(:,:,2), opts.frameRate, frameCnt(2,:));
 
-save([opts.fPath 'Vc.mat'],'Vc','U','Sv','frameCnt', 'stimTime', '-v7.3');
+save([opts.fPath 'Vc.mat'],'Vc','U','Sv','frameCnt', 'stimTime','fAlign', '-v7.3');
 save([opts.fPath 'HemoCorrection.mat'],'regC','T', 'hemoVar')
 save([opts.fPath 'opts.mat'],'opts')
+disp('All done!'); toc;
