@@ -60,6 +60,7 @@ end
 
 % set server path
 handles.serverPath.String = '\\grid-hs\churchland_hpc_home\smusall\'; %default path to data server
+handles.daqName = 'Dev1'; %name of the national instruments DAQ board
 
 %% initialize NI card
 handles = RecordMode_Callback(handles.RecordMode, [], handles); %check recording mode to create correct ni object
@@ -736,27 +737,6 @@ else
             toc
             disp('==================================================');
             
-            %% delete analog recording session and create a new one to reset 'TriggerTime' property
-            delete(handles.aNIdevice);
-            handles.aNIdevice = daq.createSession('ni'); %object for communication with NI device - analog lines
-            handles.aNIdevice.IsContinuous = true; %set to continous acquisition
-            handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
-            
-            if handles.RecordMode.Value == 1 || handles.RecordMode.Value == 3
-                ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [0:3 5 6], 'Voltage');
-                ch(2).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-                ch(3).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-                ch(5).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-                ch(6).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-            elseif handles.RecordMode.Value == 2
-                ch = addAnalogInputChannel(handles.aNIdevice,'Dev1', [0:3 6 7], 'Voltage');
-                ch(3).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
-                ch(4).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
-                ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [5 6], 'Voltage'); %recording of blue light trigger
-                ch(1).TerminalConfig = 'SingleEnded';
-                ch(2).TerminalConfig = 'SingleEnded';
-            end
-            
             start(handles.vidObj); %get camera ready to be triggered again
             set(handles.CurrentStatus,'String','Waiting for trigger');
             
@@ -1156,27 +1136,15 @@ else
     handles.aNIdevice.IsContinuous = true; %set to continous acquisition
     handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
     
-    if hObject.Value == 1 %set standard settings for widefield mapping
-        addDigitalChannel(handles.dNIdevice,'Dev3','port1/line0:2','OutputOnly'); %output channels for blue, violet and mixed light (1.0:blue, 1.1:violet, 1.2:mixed)
-        addDigitalChannel(handles.dNIdevice,'Dev3','port0/line0:2','InputOnly'); %input channels to trigger data acquisition and control timing of animal behavior (0.2: trial start, 0.3: stim on)
-        
-        ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [0:3 5 6], 'Voltage');
-        ch(2).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-        ch(3).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-        ch(5).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-        ch(6).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
-        
-    elseif hObject.Value == 2 %set standard settings for behavioral recording
-        addDigitalChannel(handles.dNIdevice,'Dev3','port1/line0:2','OutputOnly'); %output channels for blue, violet and mixed light (1.0:blue, 1.1:violet, 1.2:mixed)
-        addDigitalChannel(handles.dNIdevice,'Dev1','port0/line0:2','InputOnly'); %input channels to trigger data acquisition and control timing of animal behavior. 0.0 = TrialOn; 0.1 = StimOn; 0.2 = StopTrial
-        
-        ch = addAnalogInputChannel(handles.aNIdevice,'Dev1', [0:3 6 7], 'Voltage');
-        ch(3).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
-        ch(4).TerminalConfig = 'SingleEnded'; %switch channels to single-ended recording
-        ch = addAnalogInputChannel(handles.aNIdevice,'Dev3', [5 6], 'Voltage'); %recording of blue light trigger
-        ch(1).TerminalConfig = 'SingleEnded';
-        ch(2).TerminalConfig = 'SingleEnded';
-    end
+    addDigitalChannel(handles.dNIdevice,handles.daqName,'port1/line0:2','OutputOnly'); %output channels for blue, violet and mixed light (1.0:blue, 1.1:violet, 1.2:mixed)
+    addDigitalChannel(handles.dNIdevice,handles.daqName,'port0/line0:2','InputOnly'); %input channels to trigger data acquisition and control timing of animal behavior (0.2: trial start, 0.3: stim on)
+    
+    ch = addAnalogInputChannel(handles.aNIdevice,handles.daqName, [0:3 5 6], 'Voltage');
+    ch(2).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    ch(3).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    ch(5).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    ch(6).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    
 end
 guidata(hObject,handles);
 

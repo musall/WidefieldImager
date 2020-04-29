@@ -1,4 +1,4 @@
-function [header,data] = Widefield_LoadData(cPath,Condition,dataType,pInd)
+function [header,data] = loadRawData(cPath,Condition,dataType,pInd)
 % short routine to load data from WidefieldImager code.
 % cPath is the path of the file that should be opened. Condition is the
 % type of data file which will determine the way the data file is read.
