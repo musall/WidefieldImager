@@ -26,7 +26,7 @@ function [bV, bU, blockInd, frameCnt, stimTime, fAlign, blueAvg, hemoAvg] = bloc
 % stimTime: Indicates the first blue frame after stimulus onset in each
 %           trial. Use this to align with behavior.
 % fAlign:   Indicates that there was a potential issue with alignment in
-%           this trial. Use this to rject faulty trials if needed.
+%           this trial. Use this to reject faulty trials if needed.
 % blueAvg: Mean image of the blue channel. Can be used to get vessel image
 %          or determine size of a single frame in the widefield data.
 % hemoAvg: Same as 'blueAvg' for the violet channel.

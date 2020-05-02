@@ -5,8 +5,8 @@ opts.nrBlocks = 49; %nr of blocks for svd
 opts.overlap = 20; % pixel overlap between blocks
 opts.dimCnt = 200; %nr of components in the final dataset
 opts.blockDims = 25; %number of dimensions from SVD per block
-opts.stimLine = 6; %analog line that contains stimulus trigger.
-opts.trigLine = [8 9]; %analog lines for blue and violet light triggers.
+opts.stimLine = 3; %analog line that contains stimulus trigger.
+opts.trigLine = [6 7]; %analog lines for blue and violet light triggers.
 opts.useGPU = true; %flag to use GPU acceleration
 
 % check for handles file from WidefieldImager to get frame rate.

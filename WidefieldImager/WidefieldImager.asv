@@ -1136,26 +1136,27 @@ else
     checker = false; %check if daq device with correct ID is present. Default is 'Dev1'
     for x = 1 : length(daqs)
         if strcmpi(daqs(x).ID,handles.daqName)
-            checker = true;            
+            checker = true;
         end
     end
-    if ~checker
-        warning(['Could not find NI-DAQ: ' handles.daqName ' - Using board ' daqs(x).ID ' instead.'])
-        handles.daqName = daqs(x).ID;
-    end
-        
+    if ~
+    
     handles.dNIdevice = daq.createSession('ni'); %object for communication with NI device - digital lines
     handles.aNIdevice = daq.createSession('ni'); %object for communication with NI device - analog lines
     handles.aNIdevice.IsContinuous = true; %set to continous acquisition
     handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
     
+    
+    
     addDigitalChannel(handles.dNIdevice,handles.daqName,'port1/line0:2','OutputOnly'); %output channels for blue, violet and mixed light (1.0:blue, 1.1:violet, 1.2:mixed)
     addDigitalChannel(handles.dNIdevice,handles.daqName,'port0/line0:2','InputOnly'); %input channels to trigger data acquisition and control timing of animal behavior (0.2: trial start, 0.3: stim on)
     
-    ch = addAnalogInputChannel(handles.aNIdevice,handles.daqName, 0:3, 'Voltage');
-    for x = 1 : length(ch)
-        ch(x).TerminalConfig = 'SingleEnded'; %use single-ended recordings. Use differential when recording low SNR signals (needs to line for +/-)
-    end
+    ch = addAnalogInputChannel(handles.aNIdevice,handles.daqName, [0:3 5 6], 'Voltage');
+    ch(2).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    ch(3).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    ch(5).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    ch(6).TerminalConfig = 'SingleEnded'; %switch trigger channels to single-ended recording
+    
 end
 guidata(hObject,handles);
 
