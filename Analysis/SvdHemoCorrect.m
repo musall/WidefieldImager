@@ -16,7 +16,7 @@ function [Vout, regC, T, hemoVar] = SvdHemoCorrect(U, blueV, hemoV, sRate, frame
 % hemoVar is the variance in blue that is explained by the violet signal
 
 if ~exist('highCut', 'var') || isempty(highCut)
-    highCut = 15; %upper frequency threshold for low-pass smoothing filter
+    highCut = 10; %upper frequency threshold for low-pass smoothing filter
 end
 
 if ~exist('smoothBlue', 'var') || isempty(smoothBlue)
