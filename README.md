@@ -6,7 +6,7 @@ Pre-processed imaging data from the study can be found here: http://repository.c
 
 See also https://github.com/jcouto/wfield for python code with extended functionality.
 
-Some of the pre-processing analysis was inspired by code from Kenneth Harris and Matteo Carandini's lab: https://github.com/cortex-lab/widefield
+Some of the pre-processing analysis was based on code from Kenneth Harris and Matteo Carandini's lab: https://github.com/cortex-lab/widefield
 
 # Overview
 The 'WidefieldImager' folder contains the widefield acquisition software. 'LEDswitcher' contains code for a Teensy microcrontoller (https://www.pjrc.com/store/teensy32.html) to control different excitation LEDs in the widefield setup. 
@@ -44,7 +44,7 @@ Lastly, 'SvdHemoCorrect' performs hemo-dynamic correction on the low-dimensional
 The resulting dataset 'Vc' represents the corrected imaging dataset. To restore individual frames simply transpose U and Vc (second dimension of Vc are frames). 
 For example
 
-```rawData = U * Vc(:, 1:10)```
+```rawData = svdFrameReconstruct(U,Vc(:,1:10));```
 
 will restore the first 10 frames in the current dataset. 
 The 'index frameCnt' contains the number of frames per trial and 'stimTime' indicates at which trial a stimulus was presented'. Using these variables you can reconstruct imaging data from different trials or responses to stimulus events of interest.
