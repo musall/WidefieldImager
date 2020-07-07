@@ -26,6 +26,8 @@ Before starting the code, make sure to install all required PCO drivers, the Mat
 Clone or download the repository to your imaging PC and add it to your Matlab path. Type 'WidefieldImager' to run the acqusition software. Click “New animal” and enter animal ID
 when prompted. Make sure other settings, such as trial duration and file path are correct. Click “start preview”, center the animal under the objective and switch on the blue light. Position the light shielding cone, if needed.
 
+Type ```WidefieldImager``` in the Matlab command window.
+
 Click “Take Snapshot” to store an image of the preparation before starting the recording. To start imaging, change the excitation light to “Mixed light” and click the “Wait for trigger” button. The software will no wait for a stimulus trigger, from a behavioral or stimulation system.
 Start the stimulation/behavioral paradigm. To start a trial, a “trial start” trigger needs to be sent to the NI-DAQ and imaging data will be recorded when a stimulus trigger is received. 
 The data includes frames, according to the baseline and a post-stimulus period. If no stimulus trigger is received within the ‘Wait’ period, the trial is stopped and a new “trial start” trigger needs to be provided. An optional “trial end” trigger can be provided to stop a trial immediately. 
@@ -35,7 +37,8 @@ This will stop the recording after the current trial is completed or no stimulus
 
 # Widefield pre-processing software
 Clone or download the repository to your analysis PC and add it to your Matlab path. You can either analysis your own imaging data or download a demo recording here.
-Navigate to the folder that contains your imaging data in a folder named 'DemoRec', then type 'edit Tutorial_dimReduction.m'.
+Navigate to the folder that contains your imaging data in a folder named 'DemoRec', then type ```edit Tutorial_dimReduction.m```
+
 Tutorial_dimReduction is a demo scrip that contains different variables that are relevant for pre-processing. All variables are described in the script and should be self-explanatory. Write an issue report if there are any problems and I'll try to assist.
 
 The pipeline has multiple steps: blockSVD separates the imaging frames into smaller blocks and performs linear dimensionality using randomized SVD. This steps returns block-wise data 'bV' and 'bU'.
