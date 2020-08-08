@@ -600,6 +600,7 @@ else
     handles.ChangeDataPath.Enable = 'off';
     
     % automatically unlock software triggers if NI device is missing
+    handles.TrialTrigger.Enable = 'on';
     if isempty(handles.dNIdevice)
         handles.triggerLock.Value = false; 
         handles = triggerLock_Callback(handles.triggerLock, [], handles); %unlock software triggers
@@ -617,10 +618,9 @@ else
             end
             
             % lock software trigger buttons again
-            if isempty(handles.dNIdevice)
-                handles.triggerLock.Value = true;
-                handles = triggerLock_Callback(handles.triggerLock, [], handles); %unlock software triggers
-            end
+            handles.triggerLock.Value = true;
+            handles = triggerLock_Callback(handles.triggerLock, [], handles); %unlock software triggers
+            handles.TrialTrigger.Enable = 'off';
             
             set(handles.WaitForTrigger, 'String' , 'Wait for Trigger OFF')
             set(handles.WaitForTrigger, 'BackgroundColor' , '[1 0 0]')
@@ -1207,7 +1207,7 @@ CheckPath(handles);
 % check NI card
 daqs = daq.getDevices;
 if isempty(daqs)
-    disp('No NI devices found. Manual triggers can be used to control acquisition.')
+    disp('No NI devices found. Control acquisition with manual triggers instead.')
     handles.dNIdevice = [];
 else
     if isfield(handles,'dNIdevice')
@@ -1382,7 +1382,7 @@ function StopTrigger_Callback(hObject, eventdata, handles)
 
 
 % --- Executes on button press in triggerLock.
-function handles = triggerLock_Callback(hObject, eventdata, handles)
+function handles =triggerLock_Callback (hObject, eventdata, handles)
 % hObject    handle to triggerLock (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
