@@ -13,11 +13,12 @@ The 'WidefieldImager' folder contains the widefield acquisition software. 'LEDsw
 The 'CAD' folder contains 3-D models for different parts that are useful for head-fixed imaging, such as headbars and clamps and a light-shielding cone.
 The 'Analysis' folder contains a Matlab pipeline to perfornm linear dimensionality reduction (using localized singular value decomposition) and hemodynamic correction on raw imaging data. 
 
-# Hardware
-There are no specific hardware requirements to run the code. Our acqusition system runs on Matlab 2014b, minor adjustments might be needed for newer Matlab versions. 
-To capture imaging data, it is recommended to use a large (>=1TB) solid state drive and sufficient RAM (>=16GB). Since data is streamed to memory and written to disc between trials, this is particularly important when continuously imaging for long durations or high frame rates. 
+# Requirements
+There are no specific requirements for the imaging PC. However, it is recommended to use a large (>=1TB) solid state drive and sufficient RAM (>=16GB). Since data is streamed to working memory and written to disc between trials, this is particularly important when continuously imaging for longer durations or high frame rates.
+The pre-processing pipeline also benefits from sufficient RAM (>= 16GB). 
+The optional GPU-acceleration requires a CUDA compatible GPU from Nvidia, ideally with at least 6GB of VRAM.
 
-The pre-processing pipeline also benefits from sufficient RAM (>= 16GB). The optional GPU-acceleration requires a CUDA compatible GPU from Nvidia, ideally with at least 6GB of VRAM.
+The software requires Matlab and the Image Acquisition Toolbox (IMAQ). Our acqusition system runs on Matlab 2014b and the code has been tested up to Matlab 2017a. Minor adjustments might be needed for newer Matlab versions. 
 
 # Widefield acquisition software
 The software is customized to work with a PCO.edge 5.5 camera. You can modify WidefieldImager.m to work with different camera systems through Matlabs ImageAcquisition toolbox.
