@@ -22,7 +22,7 @@ function varargout = WidefieldImager(varargin)
 
 % Edit the above text to modify the response to help WidefieldImager
 
-% Last Modified by GUIDE v2.5 08-Aug-2020 00:22:23
+% Last Modified by GUIDE v2.5 09-Aug-2020 18:16:28
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -58,12 +58,15 @@ if datenum(version('-date')) < 736781 %check if matlab is 2017a or newer
     warning('Matlab version is an older as 2017a. This code has not been tested on earlier versions.')
 end
 
-% set server path
-handles.serverPath.String = '\\grid-hs\churchland_hpc_home\smusall\'; %default path to data server
+% some variables
 handles.daqName = 'Dev1'; %name of the national instruments DAQ board
+handles.extraFrames = 5; %amount of frames where the light is switched off at the end of the recording. This helps to ensure proper alignment with analog data.
+handles.minSize = 100; % minimum free disk space before producing a warning (in GB)
+handles.serverPath = '\\grid-hs\churchland_hpc_home\smusall\'; %data server path
 
 %% initialize NI card
 handles = RecordMode_Callback(handles.RecordMode, [], handles); %check recording mode to create correct ni object
+guidata(handles.WidefieldImager, handles);
 
 %% initialize camera and set handles
 handles.vidName = 'pcocameraadaptor'; %PCO camera
@@ -331,10 +334,8 @@ function TakeSnapshot_Callback(hObject, eventdata, handles)
 if handles.vidObj == 0
     disp('Snapshot not available. Check if camera is connected and restart.')
 else
-    h = figure('Toolbar','none','Menubar','none','NumberTitle','off','Name','SnapShot'); %create figure to show snapshot
+    h = figure('Toolbar','none','Menubar','none','NumberTitle','off','Name','Snapshot'); %create figure to show snapshot
     snap = getsnapshot(handles.vidObj); %get snapshot from video object
-%     imshow(snap,'XData',[0 1],'YData',[0 1]); colormap gray; axis image;
-    imshow(snap); colormap gray; axis image;
     temp = ls(handles.path.base); %check if earlier snapshots exist
     temp(1,8)=' '; % make sure temp has enough characters
     temp = temp(sum(ismember(temp(:,1:8),'Snapshot'),2)==8,:); %only keep snapshot filenames
@@ -342,7 +343,10 @@ else
     cNr = max(str2num(temp)); %get highest snapshot nr
     cNr(isempty(cNr)) = 0; %replace empty with 0 if no previous snapshot existed
     save([handles.path.base 'Snapshot_' num2str(cNr+1) '.mat'],'snap') %save snapshot
-    saveas(h,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg']) %save snapshot as jpg
+    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg']) %save snapshot as jpg
+    
+    %     imshow(snap,'XData',[0 1],'YData',[0 1]); colormap gray; axis image;
+    imshow(snap); axis image; title(['Saved as Snapshot ' num2str(cNr+1)]);
     uicontrol('String','Close','Callback','close(gcf)','units','normalized','position',[0 0 0.15 0.07]); %close button
     handles.SnapshotTaken = true; %update snapshot flag
     
@@ -576,10 +580,10 @@ else
     
     % check if server location is available and create folder for behavioral data
     % 'open' indicates that this is the folder that relates to the current imaging session
-    if isdir(handles.serverPath.String)
+    if exist(handles.serverPath,'dir')
         fPath = get(handles.DataPath,'string');
-        fPath = strrep(fPath,fPath(1:2),handles.serverPath.String); %replace path of local drive with network drive
-        fPath = [fPath '_open']; %add identifier that this session is currently being acquired
+        fPath = strrep(fPath,fPath(1:2),handles.serverPath); %replace path of local drive with network drive
+        fPath = [fPath '_open']; %add identifier that this session is currently being acquired (useful to point apps to the same folder)
         mkdir(fPath); %this is the server folder where other programs can write behavioral data.
     end
     
@@ -637,6 +641,11 @@ else
             handles.driveSelect.Enable = 'on';
             handles.ChangeDataPath.Enable = 'on';
             CheckPath(handles);
+            
+            % stop camera
+            stop(handles.vidObj);
+            flushdata(handles.vidObj);
+        
             return
         end
         
@@ -751,8 +760,7 @@ else
                     end
                     
                     % switch off LED and grab some extra dark frames to ensure that blue and violet channels can be separated correctly.
-                    extraFrames = 5; %amount of additional frames to get a black frame - default ist 5.
-                    recPause = (extraFrames + 1) / str2double(handles.FrameRate.String); %pause long enough to get additional frames.
+                    recPause = (handles.extraFrames + 1) / str2double(handles.FrameRate.String); %pause long enough to get extra frames.
                     if recPause < 0.2; recPause = 0.2; end %at least 200ms pause
                     
                     handles.BlueLight.Value = false; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED off
@@ -760,7 +768,7 @@ else
                     
                     tic
                     if ~isempty(handles.dNIdevice)
-                        pause(recPause); handles.aNIdevice.stop(); %pause to make sure analog data is written and stop analog object
+                        pause(recPause); handles.aNIdevice.stop(); %pause to ensure all analog data is written, then stop analog object
                         fclose(aID); %close analog data file
                         delete(handles.aListen); %delete listener for analog data recording
                     end
@@ -771,12 +779,12 @@ else
                         disp(['Trial finished... Removing ' num2str(bIdx-bSize) ' frames from buffer']);
                     end
                     
-                    if handles.vidObj.FramesAvailable < (bSize + sSize + extraFrames)
-                        [Data,~,Time] = getdata(handles.vidObj, handles.vidObj.FramesAvailable); %collect available video data
+                    if handles.vidObj.FramesAvailable < (bSize + sSize + handles.extraFrames)
+                        [Data,~,frameTimes] = getdata(handles.vidObj, handles.vidObj.FramesAvailable); %collect available video data
                     else
-                        [Data,~,Time] = getdata(handles.vidObj,bSize + sSize + extraFrames); %collect requested video data
+                        [Data,~,frameTimes] = getdata(handles.vidObj,bSize + sSize + handles.extraFrames); %collect requested video data
                     end
-                    Time = datenum(cat(1,Time(:).AbsTime)); %collect absolute timestamps
+                    frameTimes = datenum(cat(1,frameTimes(:).AbsTime)); %collect absolute timestamps
                     
                     if bIdx < bSize %if baseline has less frames as set in the GUI
                         disp(['Collected only ' num2str(bIdx) ' instead of ' num2str(bSize) ' frames in the baseline - check settings'])
@@ -791,14 +799,28 @@ else
             
             %% Save data to folder and clear
             set(handles.CurrentStatus,'String','Saving data');
-            disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(bIdx) '; Poststim Frames: ' num2str(size(Data,4)-(bIdx + extraFrames)) '; Extra Frames: ' num2str(extraFrames) '; Saving data ...'])
+            disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(bIdx) '; Poststim Frames: ' num2str(size(Data,4)-(bIdx)) '; Dark Frames: ' num2str(handles.extraFrames) '; Saving data ...'])
             
-            sID = fopen([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.dat'], 'Wb'); %open binary stimulus file
-            fwrite(sID,length(Time)+length(size(Data)),'double'); %write number of expected header values
-            fwrite(sID,Time,'double'); %write absolute timestamps of each frame
-            fwrite(sID,size(Data),'double'); %write size of image data array
-            fwrite(sID,Data,'uint16'); %write image data
-            fclose(sID);
+            % save frametimes and size of widefield data (this is useful to read binary data later)
+            imgSize = size(Data);
+            cFile = ([get(handles.DataPath,'String') '\frameTimes_' get(handles.TrialNr,'String') '.mat']);
+            save(cFile,'frameTimes', 'imgSize'); %save frametimes
+                
+            if ~handles.saveTIF.Value %saw as raw binary (default because of high writing speed)
+                sID = fopen([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.dat'], 'Wb'); %open binary stimulus file
+                fwrite(sID,Data,'uint16'); %write iamging data as flat binary
+                fclose(sID);
+            
+            else %save as tiff stack (writes slower but raw data is more accessible)
+                cFile = ([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.tif']);
+                for x = 1 : imgSize(end)
+                    if length(imgSize) == 3
+                        imwrite(Data(:, :, x), cFile, 'WriteMode', 'append', 'Compression', 'none');
+                    elseif length(imgSize) == 4
+                        imwrite(Data(:, :, :, x), cFile, 'WriteMode', 'append', 'Compression', 'none');
+                    end
+                end
+            end
             
             % show average of current trial
             baselineAvg = squeeze(mean(Data(:,:,1,1:bIdx),4));
@@ -806,7 +828,7 @@ else
             stimAvg = (stimAvg-baselineAvg)./baselineAvg;
             imshow(stimAvg,'parent',handles.ImagePlot);
             colormap(handles.ImagePlot, parula(256));
-            clear Data Time
+            clear Data frameTimes
             
             toc
             disp('==================================================');
@@ -865,7 +887,6 @@ end
 
 function handles = CheckPath(handles)
 
-sizLim = 150; % check remaining disk space and suggest different drive if less than sizLim (in gb) is left
 % Look for single-letter drives, starting at a: or c: as appropriate
 ret = {};
 for i = double('c') : double('z')
@@ -876,24 +897,25 @@ end
 handles.driveSelect.String = char(ret);
 
 cPath = java.io.File(strtrim(handles.driveSelect.String(handles.driveSelect.Value,:)));
-if (cPath.getFreeSpace / 2^30) < sizLim && length(handles.driveSelect.String) > 1
+if (cPath.getFreeSpace / 2^30) < handles.minSize && length(handles.driveSelect.String) > 1
     answer = questdlg(['Only ' num2str((cPath.getFreeSpace / 2^30)) 'gb left on ' strtrim(handles.driveSelect.String(handles.driveSelect.Value,:)) filesep '. Change drive?'], ...
-        'Drive select', 'Yes', 'No', 'Yes');
+        'Drive select', 'Yes', 'No', 'No, stop asking me', 'Yes');
     if strcmp(answer, 'Yes')
-        
         checker = true;
         cDrive = handles.driveSelect.Value; %keep current drive index
         while checker
             handles.driveSelect.Value = rem(handles.driveSelect.Value,length(handles.driveSelect.String))+1; %increase drive selection value by 1
             cPath = java.io.File(strtrim(handles.driveSelect.String(handles.driveSelect.Value,:)));
-            if (cPath.getFreeSpace / 2^30) > sizLim
+            if (cPath.getFreeSpace / 2^30) > handles.minSize
                 disp(['Changed path to drive ' strtrim(handles.driveSelect.String(handles.driveSelect.Value,:)) filesep '. ' num2str((cPath.getFreeSpace / 2^30)) 'gb remaining.'])
                 checker = false;
             elseif handles.driveSelect.Value == cDrive
-                disp(['Could not find a drive with more then ' num2str(sizLim) 'gb of free space. Path unchanged.'])
+                disp(['Could not find a drive with more then ' num2str(handles.minSize) 'gb of free space. Path unchanged.'])
                 checker = false;
             end
         end
+    elseif strcmp(answer, 'No, stop asking me')
+        handles.minSize = 0; %don't check disk size anymore
     end
 end
 
@@ -901,7 +923,7 @@ end
 handles.path.base = [handles.driveSelect.String(handles.driveSelect.Value,:) filesep ...
     strtrim(handles.RecordMode.String{handles.RecordMode.Value}) filesep]; %set path of imaging code
 
-if ~isdir([handles.path.base 'Animals']) %check for animal path to save data
+if ~exist([handles.path.base 'Animals'],'dir') %check for animal path to save data
     mkdir([handles.path.base 'Animals']) %create folder if required
 end
 
@@ -961,7 +983,7 @@ handles.DataPath.String = [cPath '\' handles.path.RecordingID]; %set complete fi
 set(handles.TrialNr,'String','0'); %reset TrialNr
 handles.SnapshotTaken = false; %flag for snapshot - has to be taken in order to start data acquisition
 handles.CurrentStatus.String = 'Not ready'; %reset status indicator
-guidata(handles.WidefieldImager,handles);
+guidata(handles.WidefieldImager, handles);
 
 
 function WaitingTime_Callback(hObject, eventdata, handles)
@@ -1091,7 +1113,9 @@ function FrameRate_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of FrameRate as a double
 
 if ~isempty(handles.vidObj)
-    src = getselectedsource(handles.vidObj); 
+    stop(handles.vidObj);
+    flushdata(handles.vidObj);
+    src = getselectedsource(handles.vidObj);
     if strcmpi(handles.vidName, 'pcocameraadaptor')
         if str2double(handles.FrameRate.String) > 10 && strcmp(handles.sBinning.String(handles.sBinning.Value),'1')
             answer = questdlg('Spatial binning is set to 1. This could produce a lot of data. Proceed?');
@@ -1105,7 +1129,7 @@ if ~isempty(handles.vidObj)
         % Adjust frame rate for non-PCO camera. 
         % !! Warning !! This does not take effect with all imaq video adaptors. 
         % Make sure that your camera allows the Matlab adaptor to control the framerate.
-        src.FrameRate = hObject.String{hObject.Value}; 
+        src.FrameRate = hObject.String{hObject.Value};
     end
 end
 
@@ -1199,10 +1223,10 @@ if hObject.Value == 1 %set standard settings for widefield mapping
     handles.BaselineFrames.String = '2';
     handles.PostStimFrames.String = '23';
 elseif  hObject.Value == 2 %set standard settings for behavioral recording
-    handles.BaselineFrames.String = '3.25';
+    handles.BaselineFrames.String = '3';
     handles.PostStimFrames.String = '6';
 end
-CheckPath(handles);
+handles = CheckPath(handles);
 
 % check NI card
 daqs = daq.getDevices;
@@ -1253,28 +1277,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-function serverPath_Callback(hObject, eventdata, handles)
-% hObject    handle to serverPath (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of serverPath as text
-%        str2double(get(hObject,'String')) returns contents of serverPath as a double
-
-
-% --- Executes during object creation, after setting all properties.
-function serverPath_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to serverPath (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-
-
 % --- Executes on selection change in driveSelect.
 function driveSelect_Callback(hObject, eventdata, handles)
 % hObject    handle to driveSelect (see GCBO)
@@ -1290,6 +1292,7 @@ if ~exist(cPath,'dir')
     mkdir(cPath);
 end
 handles = CheckPath(handles); %Check for data path, reset date and trialcount
+guidata(handles.WidefieldImager, handles);
 
 % --- Executes during object creation, after setting all properties.
 function driveSelect_CreateFcn(hObject, eventdata, handles)
@@ -1404,3 +1407,12 @@ elseif hObject.Value == 1
     handles.StopTrigger.Enable = 'off';
     hObject.String = 'Locked';
 end
+
+
+% --- Executes on button press in saveTIF.
+function saveTIF_Callback(hObject, eventdata, handles)
+% hObject    handle to saveTIF (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of saveTIF
