@@ -67,7 +67,10 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
    
     bFrame = find(temp < min(temp)*.75); %index for first black frame (assuming the last frame is really a dark frame)
     bFrame(bFrame < round(size(temp,2) / 2)) = []; %make sure black frame is in the second half of recording.
+    
+    if isempty(bFrame); bFrame = length(temp); end %if there are no black frames, just use the last one
     bFrame = bFrame(1);
+
     blueInd = false(1,length(temp));
 
     if blueLast %last frame before black is blue

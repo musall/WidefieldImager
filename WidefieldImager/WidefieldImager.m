@@ -345,7 +345,7 @@ else
     cNr = max(str2num(temp)); %get highest snapshot nr
     cNr(isempty(cNr)) = 0; %replace empty with 0 if no previous snapshot existed
     save([handles.path.base 'Snapshot_' num2str(cNr+1) '.mat'],'snap') %save snapshot
-    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg'], 'Bitdepth', 16) %save snapshot as jpg
+    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg'], 'Bitdepth', 12) %save snapshot as jpg
     
     %     imshow(snap,'XData',[0 1],'YData',[0 1]); colormap gray; axis image;
     imshow(snap); axis image; title(['Saved as Snapshot ' num2str(cNr+1)]);
@@ -814,7 +814,7 @@ else
             disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(bIdx) '; Poststim Frames: ' num2str(size(Data,4)-(bIdx)) '; Dark Frames: ' num2str(handles.extraFrames) '; Saving data ...'])
             
             % save frametimes and size of widefield data (this is useful to read binary data later)
-            imgSize = size(Data);verver
+            imgSize = size(Data);
             cFile = ([get(handles.DataPath,'String') '\frameTimes_' get(handles.TrialNr,'String') '.mat']);
             save(cFile,'frameTimes', 'imgSize'); %save frametimes
                 
