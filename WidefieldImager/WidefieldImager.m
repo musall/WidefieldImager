@@ -52,17 +52,17 @@ function WidefieldImager_OpeningFcn(hObject, eventdata, handles, varargin)
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to WidefieldImager (see VARARGIN)
 
-% check if matlab is 2017a or newer
+% check if matlab is 2014b or newer
 handles.output = hObject;
-if datenum(version('-date')) < 736781 %check if matlab is 2017a or newer
-    warning('Matlab version is an older as 2017a. This code has not been tested on earlier versions.')
+if datenum(version('-date')) < 735857 %check if matlab is 2014b or newer
+    warning('Matlab version is older as 2014b. This code has not been tested on earlier versions.')
 end
 
 % some variables
-handles.daqName = 'Dev1'; %name of the national instruments DAQ board
+handles.daqName = 'Dev3'; %name of the national instruments DAQ board
 handles.extraFrames = 5; %amount of frames where the light is switched off at the end of the recording. This helps to ensure proper alignment with analog data.
 handles.minSize = 100; % minimum free disk space before producing a warning (in GB)
-handles.serverPath = '\\grid-hs\churchland_hpc_home\smusall\'; %data server path
+handles.serverPath = '\\your_server_path'; %data server path
 
 %% initialize NI card
 handles = RecordMode_Callback(handles.RecordMode, [], handles); %check recording mode to create correct ni object
@@ -86,18 +86,20 @@ if isempty(handles.vidObj)
             handles.vidName = info.InstalledAdaptors{out};
         end
     end
-    
-    if ~isempty(handles.vidName)
-        fprintf('Using %s as current video adapter\n',handles.vidName);
-        handles.vidObj = checkCamera(handles.vidName, handles); %get non-PCO video object
-        preview(handles.vidObj,handles.ImagePlot.Children); %start preview
-        colormap(handles.ImagePlot,'gray'); axis image;
-    else
-        warning('No camera found. Type "imaqhwinfo" to make sure your camera is porperly installed and running.')
-    end
     handles.sBinning.Enable = 'off'; %this only works with PCO camera so disable for other cameras
 end
 
+if ~isempty(handles.vidName)
+    fprintf('Using %s as current video adapter\n',handles.vidName);
+    handles.vidObj = checkCamera(handles.vidName, handles); %get non-PCO video object
+    preview(handles.vidObj,handles.ImagePlot.Children); %start preview
+    maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
+    cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
+    colormap(handles.ImagePlot,cMap);
+else
+    warning('No camera found. Type "imaqhwinfo" to make sure your camera is porperly installed and running.')
+end
+    
 if any(ismember(handles.driveSelect.String(:,1), 'g')) %start on G: drive by default
     handles.driveSelect.Value = find(ismember(handles.driveSelect.String(:,1), 'g'));
 end
@@ -343,7 +345,7 @@ else
     cNr = max(str2num(temp)); %get highest snapshot nr
     cNr(isempty(cNr)) = 0; %replace empty with 0 if no previous snapshot existed
     save([handles.path.base 'Snapshot_' num2str(cNr+1) '.mat'],'snap') %save snapshot
-    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg']) %save snapshot as jpg
+    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg'], 'Bitdepth', 16) %save snapshot as jpg
     
     %     imshow(snap,'XData',[0 1],'YData',[0 1]); colormap gray; axis image;
     imshow(snap); axis image; title(['Saved as Snapshot ' num2str(cNr+1)]);
@@ -376,7 +378,9 @@ if handles.vidObj == 0
     disp('Preview not available. Check if camera is connected and restart.')
 else
     preview(handles.vidObj,handles.ImagePlot.Children); %start preview
-    colormap(handles.ImagePlot,'gray');
+    maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
+    cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
+    colormap(handles.ImagePlot,cMap);
 end
 
 % --- Executes on button press in StopPreview.
@@ -422,9 +426,11 @@ else
         handles.ROIposition = ROI;
         set(handles.vidObj,'ROIposition',handles.ROIposition);
         snap = getsnapshot(handles.vidObj); hold(handles.ImagePlot,'off');
-%         imshow(snap,[],'parent',handles.ImagePlot,'XData',[0 1],'YData',[0 1]);
+        %         imshow(snap,[],'parent',handles.ImagePlot,'XData',[0 1],'YData',[0 1]);
         imshow(snap,[],'parent',handles.ImagePlot);
-        colormap(handles.ImagePlot,'gray');
+        maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
+        cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
+        colormap(handles.ImagePlot,cMap);
         preview(handles.vidObj,handles.ImagePlot.Children); %resume preview
     end
 end
@@ -448,6 +454,9 @@ else
     imshow(snap,[],'parent',handles.ImagePlot); hold(handles.ImagePlot,'off'); %plot current view
     colormap(handles.ImagePlot,'gray');
     preview(handles.vidObj,handles.ImagePlot.Children); %resume preview
+    maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
+    cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
+    colormap(handles.ImagePlot,cMap);
     
     % update current resolution in GUI
     imHeight = handles.ROIposition(3)-handles.ROIposition(1);
@@ -477,6 +486,9 @@ else
         set(handles.vidObj,'ROIposition',handles.ROIposition); % set new ROI position
         colormap(handles.ImagePlot,'gray');
         preview(handles.vidObj)  %resume camera preview
+        maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
+        cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
+        colormap(handles.ImagePlot,cMap);
     else
         disp([get(hObject,'String') ' is not a valid input to change the resolution'])
     end
@@ -604,7 +616,7 @@ else
     handles.ChangeDataPath.Enable = 'off';
     
     % automatically unlock software triggers if NI device is missing
-    handles.TrialTrigger.Enable = 'on';
+    handles.triggerLock.Enable = 'on';
     if isempty(handles.dNIdevice)
         handles.triggerLock.Value = false; 
         handles = triggerLock_Callback(handles.triggerLock, [], handles); %unlock software triggers
@@ -624,8 +636,8 @@ else
             % lock software trigger buttons again
             handles.triggerLock.Value = true;
             handles = triggerLock_Callback(handles.triggerLock, [], handles); %unlock software triggers
-            handles.TrialTrigger.Enable = 'off';
-            
+            handles.triggerLock.Enable = 'off';
+
             set(handles.WaitForTrigger, 'String' , 'Wait for Trigger OFF')
             set(handles.WaitForTrigger, 'BackgroundColor' , '[1 0 0]')
             set(handles.AcqusitionStatus, 'value' , false)
@@ -802,7 +814,7 @@ else
             disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(bIdx) '; Poststim Frames: ' num2str(size(Data,4)-(bIdx)) '; Dark Frames: ' num2str(handles.extraFrames) '; Saving data ...'])
             
             % save frametimes and size of widefield data (this is useful to read binary data later)
-            imgSize = size(Data);
+            imgSize = size(Data);verver
             cFile = ([get(handles.DataPath,'String') '\frameTimes_' get(handles.TrialNr,'String') '.mat']);
             save(cFile,'frameTimes', 'imgSize'); %save frametimes
                 
@@ -826,8 +838,9 @@ else
             baselineAvg = squeeze(mean(Data(:,:,1,1:bIdx),4));
             stimAvg = squeeze(mean(Data(:,:,1,bIdx+1:end),4));
             stimAvg = (stimAvg-baselineAvg)./baselineAvg;
-            imshow(stimAvg,'parent',handles.ImagePlot);
+            imshow(mat2gray(stimAvg),'parent',handles.ImagePlot);
             colormap(handles.ImagePlot, parula(256));
+            drawnow;
             clear Data frameTimes
             
             toc
