@@ -176,11 +176,10 @@ for iBlocks = 1 : nrBlocks
     fID = fopen([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '.dat'], 'r');
         
     allBlock = fread(fID, 'uint16'); fclose(fID(1));
-    allBlock = reshape(allBlock, size(blockInd{iBlocks},1), size(cat(1,blueFrameTimes{:}),1))';
+    allBlock = reshape(allBlock, size(blockInd{iBlocks},1), size(cat(1,blueFrameTimes{:}),1))';  %combine channels and transpose (this is faster if there are more frames as pixels)
     delete([opts.fPath 'blockData' filesep 'blueBlock' num2str(iBlocks) '.dat']);
 
     % run SVD on current block
-    allBlock = reshape(allBlock,size(allBlock,1),[])'; %combine channels and transpose (this is faster if there are more frames as pixels)
     [bV{iBlocks}, s, bU{iBlocks}] = fsvd(allBlock,opts.blockDims); %U and V are flipped here because we transpoed the input.
     bV{iBlocks} = gather(s * bV{iBlocks}'); %multiply S into V, so only U and V from here on
     bU{iBlocks} = gather(bU{iBlocks});
