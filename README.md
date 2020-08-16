@@ -72,7 +72,7 @@ There also needs to be a brief pause between trial end and start of the next tri
 
 By default the imaging data is saved in a flat binary file called 'Frames_*currentTrialNumber*.dat'. Data can also be saved as TIF stacks. In this case saving data will be a bit slower.
 
-Once the session is completed, click the 'Locked' button on the side of the 'Recording status' panel (red box in left image below). This unlocks the control button on the left, labeled 'Wait for Trigger ON'. Click the button to end the current session (right image below).
+Once the session is completed, click the 'Locked' button on the right side of the 'Recording status' panel (red box in left image below). This unlocks the control button on the left, labeled 'Wait for Trigger ON'. Click the button to end the current session (right image below).
 
 ![picture](images/endSession.png)
 
