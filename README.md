@@ -19,6 +19,7 @@ There are no specific requirements for the imaging PC. However, it is recommende
 The pre-processing pipeline also benefits from sufficient RAM (>= 16GB). The optional GPU-acceleration requires a CUDA compatible GPU from Nvidia, ideally with at least 6GB of VRAM.
 
 The WidefieldImager requires Matlab and the Image Acquisition Toolbox (IMAQ). A working camera adaptor has to be installed (either from the vendor or Mathworks [image acquisition support packages](https://www.mathworks.com/help/imaq/image-acquisition-support-packages-for-hardware-adaptors.html). Use 'imaqhwinfo' to make sure the adaptor is properly installed. Our setup runs on Matlab 2014b and the code has been tested up to Matlab 2017a. Minor adjustments might be needed for newer Matlab versions.
+
 To receive triggers and control excitation LEDs, a National Instruments data acquisition (DAQ) card is needed. We use the [USB-6001](https://www.ni.com/en-us/support/model.usb-6001.html), which is fairly cheap and easy to use.
 
 For full functionality, connect the DAQ and Teensy as shown in the diagram below.
@@ -59,7 +60,8 @@ To start imaging, change the excitation light to “Mixed light” (red box) and
 
 ![picture](images/initializeImaging.png)
 
-The software expects three types of triggers: 'Trial', 'Stimulus' and 'Stop'. When the imaging is started, the software waits for a trial trigger to start acquiring frames. However, these frames are only saved temporarily until a stimulus trigger is received (image below). This was done to allow more flexibility if the stimulus time is not fully pre-determined (e.g. when the animal needs to trigger the stimulus). 
+The software expects three types of triggers: 'Trial', 'Stimulus' and 'Stop'. When the imaging is started, the software waits for a trial trigger to start acquiring frames. However, these frames are only saved temporarily until a stimulus trigger is received (image below). This was done to allow more flexibility if the stimulus time is not fully pre-determined (e.g. when the animal needs to trigger the stimulus).
+
 After the stimulus trigger, the software keeps acquiring frames until the end of the 'PostStim' period is reached or a stop trigger is received. This indicates the end of a trial and a datafile is saved to the harddrive. This file contains frames according to the baseline and post-stimulus period. The duration of these periods can be adjusted in the according fields (red box) in the 'Data storage' panel on the bottom right. The 'Wait' period indicates the maximum duration the software will wait for a stimulus trigger after receiving a trial trigger. After that, the current trial is considered a miss and a new trial trigger is needed to start the next trial.
 
 ![picture](images/waitForStimulus.png)
