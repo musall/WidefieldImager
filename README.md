@@ -19,7 +19,8 @@ There are no specific requirements for the imaging PC. However, it is recommende
 The pre-processing pipeline also benefits from sufficient RAM (>= 16GB). The optional GPU-acceleration requires a CUDA compatible GPU from Nvidia, ideally with at least 6GB of VRAM.
 
 The WidefieldImager requires Matlab and the Image Acquisition Toolbox (IMAQ). A working camera adaptor has to be installed (either from the vendor or Mathworks [image acquisition support packages](https://www.mathworks.com/help/imaq/image-acquisition-support-packages-for-hardware-adaptors.html). Use 'imaqhwinfo' to make sure the adaptor is properly installed. Our setup runs on Matlab 2014b and the code has been tested up to Matlab 2017a. Minor adjustments might be needed for newer Matlab versions.
-To receive triggers and control excitation LEDs, a National Instruments data acquisition (DAQ) card is needed. We use the [USB-6001](https://www.ni.com/en-us/support/model.usb-6001.html), which is fairly cheap and is easy to use.
+To receive triggers and control excitation LEDs, a National Instruments data acquisition (DAQ) card is needed. We use the [USB-6001](https://www.ni.com/en-us/support/model.usb-6001.html), which is fairly cheap and easy to use.
+
 For full functionality, connect the DAQ and Teensy as shown in the diagram below.
 
 ![picture](images/wiring.png)
