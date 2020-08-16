@@ -62,11 +62,15 @@ To start imaging, change the excitation light to “Mixed light” (red box) and
 
 The software expects three types of triggers: 'Trial', 'Stimulus' and 'Stop'. When the imaging is started, the software waits for a trial trigger to start acquiring frames. However, these frames are only saved temporarily until a stimulus trigger is received (image below). This was done to allow more flexibility if the stimulus time is not fully pre-determined (e.g. when the animal needs to trigger the stimulus).
 
-After the stimulus trigger, the software keeps acquiring frames until the end of the 'PostStim' period is reached or a stop trigger is received. This indicates the end of a trial and a datafile is saved to the harddrive. This file contains frames according to the baseline and post-stimulus period. The duration of these periods can be adjusted in the according fields (red box) in the 'Data storage' panel on the bottom right. The 'Wait' period indicates the maximum duration the software will wait for a stimulus trigger after receiving a trial trigger. After that, the current trial is considered a miss and a new trial trigger is needed to start the next trial.
+After the stimulus trigger, the software keeps acquiring frames until the end of the 'PostStim' period is reached or a stop trigger is received. This indicates the end of a trial and a datafile is saved to the harddrive. 
+This file contains frames according to the baseline and post-stimulus period. The duration of these periods can be adjusted in the according fields (red box) in the 'Data storage' panel on the bottom right. The 'Wait' period indicates the maximum duration the software will wait for a stimulus trigger after receiving a trial trigger. After that, the current trial is considered a miss and a new trial trigger is needed to start the next trial.
 
 ![picture](images/waitForStimulus.png)
 
-In addition, five 'dark frames' without any exposure light are recorded after the post-stimulus period. This is done as a failsave when reconstructing the excitation light color of the last frame in the post-stimulus period during subsequent analysis. There also needs to be a brief pause between trial end and start of the next trial (usually 1-2 seconds, depending on data size and hardware) to allow writing to disc. By default the imaging data is saved in a flat binary file called 'Frames_*currentTrialNumber*.dat'. Data can also be saved as TIF stacks. In this case saving data will be a bit slower.
+In addition, five 'dark frames' without any exposure light are recorded after the post-stimulus period. This is done as a failsave when reconstructing the excitation light color of the last frame in the post-stimulus period during subsequent analysis. 
+There also needs to be a brief pause between trial end and start of the next trial (usually 1-2 seconds, depending on data size and hardware) to allow writing to disc. 
+
+By default the imaging data is saved in a flat binary file called 'Frames_*currentTrialNumber*.dat'. Data can also be saved as TIF stacks. In this case saving data will be a bit slower.
 
 Once the session is completed, click the 'Locked' button on the side of the 'Recording status' panel (red box in left image below). This unlocks the control button on the left, labeled 'Wait for Trigger ON'. Click the button to end the current session (right image below).
 
