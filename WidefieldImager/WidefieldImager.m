@@ -428,11 +428,12 @@ else
         snap = getsnapshot(handles.vidObj); hold(handles.ImagePlot,'off');
         %         imshow(snap,[],'parent',handles.ImagePlot,'XData',[0 1],'YData',[0 1]);
         imshow(snap,[],'parent',handles.ImagePlot);
-        maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
-        cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
-        colormap(handles.ImagePlot,cMap);
-        preview(handles.vidObj,handles.ImagePlot.Children); %resume preview
     end
+    
+    maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
+    cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
+    colormap(handles.ImagePlot,cMap);
+    preview(handles.vidObj,handles.ImagePlot.Children); %resume preview
 end
 
 % --- Executes on button press in ResetROI.
@@ -529,7 +530,7 @@ function WidefieldImager_CloseRequestFcn(hObject, eventdata, handles)
 temp = ls(handles.path.base);
 
 sFiles = ~cellfun('isempty',((strfind(cellstr(ls(handles.path.base)),'Snapshot_')))); %identify snapshot files
-rFiles = ~cellfun('isempty',((strfind(cellstr(ls(handles.path.base)),'ROI.')))); %identify ROI file
+rFiles = ~cellfun('isempty',((strfind(cellstr(ls(handles.path.base)),'ROI')))); %identify ROI file
 aFiles = [temp(sFiles,:);temp(rFiles,:)]; %all files that should be moved
 
 if ~isdir(get(handles.DataPath,'String')) && ~isempty(aFiles) %create data path if not existent and if there is data to be moved
