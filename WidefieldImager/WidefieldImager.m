@@ -345,7 +345,7 @@ else
     cNr = max(str2num(temp)); %get highest snapshot nr
     cNr(isempty(cNr)) = 0; %replace empty with 0 if no previous snapshot existed
     save([handles.path.base 'Snapshot_' num2str(cNr+1) '.mat'],'snap') %save snapshot
-    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg'], 'Bitdepth', 12) %save snapshot as jpg
+    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg'], 'Bitdepth', 8) %save snapshot as jpg
     
     %     imshow(snap,'XData',[0 1],'YData',[0 1]); colormap gray; axis image;
     imshow(snap); axis image; title(['Saved as Snapshot ' num2str(cNr+1)]);
@@ -679,6 +679,7 @@ else
             handles.TrialTrigger.Value = false;
         end
         
+        removedFrames = 0; %keep track of removed frames
         if aTrigger
             set(handles.TrialNr,'String',num2str(str2double(get(handles.TrialNr,'String'))+1)); %increase TrialNr;
             
@@ -734,8 +735,9 @@ else
                 
                 if ~stimTrigger && (toc < MaxWait) && ~stopTrigger %record baseline frames until stimulus trigger occurs or maximum waiting time is reached
                     if handles.vidObj.FramesAvailable > bSize*2
-                        getdata(handles.vidObj,bSize); %remove unnecessary frames from video capture stream
-                        disp(['Waiting... Removing ' num2str(bSize) ' frames from buffer']);
+                        [~,rejFrames] = getdata(handles.vidObj,bSize); %remove unnecessary frames from video capture stream
+                        disp(['Waiting... Removing ' num2str(length(rejFrames)) ' frames from buffer']);
+                        removedFrames = removedFrames + length(rejFrames); %count removed frames
                     end
                 else
                     bIdx = handles.vidObj.FramesAvailable; %check available baseline frames
@@ -788,14 +790,15 @@ else
                     stop(handles.vidObj); %stop video capture
                     
                     if (bIdx-bSize) > 0
-                        getdata(handles.vidObj,bIdx-bSize); %remove unnecessary frames from video object
-                        disp(['Trial finished... Removing ' num2str(bIdx-bSize) ' frames from buffer']);
+                        [~, rejFrames] = getdata(handles.vidObj,bIdx-bSize); %remove unnecessary frames from video object
+                        disp(['Trial finished... Removing ' num2str(length(rejFrames)) ' frames from buffer']);
+                        removedFrames = removedFrames + length(rejFrames); %count removed frames
                     end
                     
                     if handles.vidObj.FramesAvailable < (bSize + sSize + handles.extraFrames)
                         [Data,~,frameTimes] = getdata(handles.vidObj, handles.vidObj.FramesAvailable); %collect available video data
                     else
-                        [Data,~,frameTimes] = getdata(handles.vidObj,bSize + sSize + handles.extraFrames); %collect requested video data
+                        [Data,~,frameTimes] = getdata(handles.vidObj, bSize + sSize + handles.extraFrames); %collect requested video data
                     end
                     frameTimes = datenum(cat(1,frameTimes(:).AbsTime)); %collect absolute timestamps
                     
@@ -817,20 +820,24 @@ else
             % save frametimes and size of widefield data (this is useful to read binary data later)
             imgSize = size(Data);
             cFile = ([get(handles.DataPath,'String') '\frameTimes_' get(handles.TrialNr,'String') '.mat']);
-            save(cFile,'frameTimes', 'imgSize'); %save frametimes
-                
+            save(cFile, 'frameTimes', 'imgSize', 'removedFrames'); %save frametimes
+            
+            numChans = 1 + (handles.lightMode.Value == 3); %two channels if lightmode is set to 'mixed'
+
+            cFile = sprintf('%s%cFrames_%d_%d_%d_%s_%s', get(handles.DataPath,'String'), ...
+                filesep, numChans, size(Data,1), size(Data,2), class(Data), num2str(str2double(handles.TrialNr.String), '%04i')); %name for imaging data file
+            
             if ~handles.saveTIF.Value %saw as raw binary (default because of high writing speed)
-                sID = fopen([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.dat'], 'Wb'); %open binary stimulus file
+                sID = fopen([cFile '.dat'], 'Wb'); %open binary stimulus file
                 fwrite(sID,Data,'uint16'); %write iamging data as flat binary
                 fclose(sID);
-            
+                
             else %save as tiff stack (writes slower but raw data is more accessible)
-                cFile = ([get(handles.DataPath,'String') '\Frames_' get(handles.TrialNr,'String') '.tif']);
                 for x = 1 : imgSize(end)
                     if length(imgSize) == 3
-                        imwrite(Data(:, :, x), cFile, 'WriteMode', 'append', 'Compression', 'none');
+                        imwrite(Data(:, :, x), [cFile '.tif'], 'WriteMode', 'append', 'Compression', 'none');
                     elseif length(imgSize) == 4
-                        imwrite(Data(:, :, :, x), cFile, 'WriteMode', 'append', 'Compression', 'none');
+                        imwrite(Data(:, :, :, x), [cFile '.tif'], 'WriteMode', 'append', 'Compression', 'none');
                     end
                 end
             end
