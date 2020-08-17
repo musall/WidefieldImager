@@ -28,6 +28,7 @@ For full functionality, connect the DAQ and Teensy as shown in the diagram below
 
 # Widefield acquisition software
 The software is designed to work with a PCO.edge 5.5 camera but other cameras can be used as well (with pixel binning disabled). WidefieldImager should work with most cameras that can be used with Matlab's ImageAcquisition toolbox.
+
 When using a PCO camera, make sure to install all required drivers, the Matlab adaptor package and the CamWare software. In Camware, set the Exposure trigger to 'All lines' and close it before starting Matlab. This is important to ensure that the exposure trigger is limited to times when the entire imaging chip is being exposed.
 
 Instead of continously streaming imaging data, the software can be triggered to selectively acquire data in a trialized format. This has the advantage that excitation lights are only on during times of interest (to avoid photo bleaching) and the resulting data sets are much more managable in size. Frames are saved in a raw format but lossless compression methods (such as zip or JPEG200 compression) can be used to further reduce data size.
@@ -62,8 +63,9 @@ To start imaging, change the excitation light to “Mixed light” (red box) and
 
 The software expects three types of triggers: 'Trial', 'Stimulus' and 'Stop'. When the imaging is started, the software waits for a trial trigger to start acquiring frames. However, these frames are only saved temporarily until a stimulus trigger is received (image below). This was done to allow more flexibility if the stimulus time is not fully pre-determined (e.g. when the animal needs to trigger the stimulus).
 
-After the stimulus trigger, the software keeps acquiring frames until the end of the 'PostStim' period is reached or a stop trigger is received. This indicates the end of a trial and a datafile is saved to the harddrive. 
-This file contains frames according to the baseline and post-stimulus period. The duration of these periods can be adjusted in the according fields (red box) in the 'Data storage' panel on the bottom right. The 'Wait' period indicates the maximum duration the software will wait for a stimulus trigger after receiving a trial trigger. After that, the current trial is considered a miss and a new trial trigger is needed to start the next trial.
+After the stimulus trigger, the software keeps acquiring frames until the end of the 'PostStim' period is reached or a stop trigger is received. This indicates the end of a trial and a datafile is saved to the harddrive. The preview window will show the mean difference between the baseline and post-stimulus period.
+
+The saved data file contains frames according to the baseline and post-stimulus period. The duration of these periods can be adjusted in the according fields (red box) in the 'Data storage' panel on the bottom right. The 'Wait' period indicates the maximum duration the software will wait for a stimulus trigger after receiving a trial trigger. After that, the current trial is considered a miss and a new trial trigger is needed to start the next trial.
 
 ![picture](images/waitForStimulus.png)
 
@@ -72,7 +74,7 @@ There also needs to be a brief pause between trial end and start of the next tri
 
 By default the imaging data is saved in a flat binary file called 'Frames_*currentTrialNumber*.dat'. Data can also be saved as TIF stacks. In this case saving data will be a bit slower.
 
-Once the session is completed, click the 'Locked' button on the side of the 'Recording status' panel (red box in left image below). This unlocks the control button on the left, labeled 'Wait for Trigger ON'. Click the button to end the current session (right image below).
+Once the session is completed, click the 'Locked' button on the right side of the 'Recording status' panel (red box in left image below). This unlocks the control button on the left, labeled 'Wait for Trigger ON'. Click the button to end the current session (right image below).
 
 ![picture](images/endSession.png)
 
