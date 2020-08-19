@@ -7,7 +7,7 @@ function Widefield_MoveData(localPath)
 % folders for each recording session. The same folder structure will be
 % created in the serverPath.
 
-serverPath = '\\grid-hs\churchland_hpc_home\smusall\'; %default path to data server
+serverPath = 'your_Server_path'; %default path to data server
 serverPath = strrep(localPath,localPath(1:2),serverPath); %replace path of local drive with network drive
 
 Animals = dir([localPath '\Animals\']);if ~isempty(Animals);Animals([1 2],:) = [];end %get animal index
