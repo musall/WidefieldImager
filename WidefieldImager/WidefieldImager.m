@@ -681,6 +681,7 @@ else
         
         removedFrames = 0; %keep track of removed frames
         if aTrigger
+            tic; %timer to abort acquisition if stimulus is not received within a certain time limit
             set(handles.TrialNr,'String',num2str(str2double(get(handles.TrialNr,'String'))+1)); %increase TrialNr;
             
             set(handles.CurrentStatus,'String','Recording baseline'); %update status indicator
@@ -699,15 +700,14 @@ else
             else
                 frameRate = str2double(handles.FrameRate.String{handles.FrameRate.Value});
             end
-            bSize = str2double(handles.BaselineFrames.String)*frameRate; %number of frames in baseline
-            sSize = str2double(handles.PostStimFrames.String)*frameRate; %number of frames after stimulus trigger
+            bSize = ceil(str2double(handles.BaselineFrames.String)*frameRate); %number of frames in baseline
+            sSize = ceil(str2double(handles.PostStimFrames.String)*frameRate); %number of frames after stimulus trigger
 
             handles.vidObj.FramesPerTrigger = Inf; %acquire until stoppped
             trigger(handles.vidObj); %start image acquisition
             handles.BlueLight.Value = true; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED on
             drawnow;
             
-            tic; %timer to abort acquisition if stimulus is not received within a certain time limit
             while handles.AcqusitionStatus.Value %keep running until poststim data is recorded
                 if ~isempty(handles.dNIdevice)
                     data = inputSingleScan(handles.dNIdevice); %trigger lines
@@ -781,7 +781,6 @@ else
                     handles.BlueLight.Value = false; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED off
                     drawnow;
                     
-                    tic
                     if ~isempty(handles.dNIdevice)
                         pause(recPause); handles.aNIdevice.stop(); %pause to ensure all analog data is written, then stop analog object
                         fclose(aID); %close analog data file
@@ -851,7 +850,7 @@ else
             drawnow;
             clear Data frameTimes
             
-            toc
+            disp(['Trial ' handles.TrialNr ' completed.']); toc;
             disp('==================================================');
             
             start(handles.vidObj); %get camera ready to be triggered again
