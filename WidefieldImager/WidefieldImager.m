@@ -22,7 +22,7 @@ function varargout = WidefieldImager(varargin)
 
 % Edit the above text to modify the response to help WidefieldImager
 
-% Last Modified by GUIDE v2.5 09-Aug-2020 18:16:28
+% Last Modified by GUIDE v2.5 22-Aug-2020 13:43:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -103,6 +103,9 @@ end
 if any(ismember(handles.driveSelect.String(:,1), 'g')) %start on G: drive by default
     handles.driveSelect.Value = find(ismember(handles.driveSelect.String(:,1), 'g'));
 end
+
+% set timer for calibration mode
+handles.Calibration = []; %placeholder for calibration mode
 CheckPath(handles); %Check for data path, reset date and trialcount
 
 % UIWAIT makes WidefieldImager wait for user response (see UIRESUME)
@@ -1438,3 +1441,74 @@ function saveTIF_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of saveTIF
+
+
+% --- Executes on button press in CalibrationMode.
+function CalibrationMode_Callback(hObject, eventdata, handles)
+% hObject    handle to CalibrationMode (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of CalibrationMode
+
+if hObject.Value
+    
+    % get image and center
+    frame = getsnapshot(handles.vidObj);
+    frame = frame(:,:,1);
+    midFrame = round(size(frame)/2);
+
+    % plot lines to preview window
+    if size(handles.ImagePlot.Children,1) ~= 3
+        delete(findall(handles.ImagePlot,'Type','line'))
+        hold(handles.ImagePlot, 'on');
+        plot(handles.ImagePlot, [1, size(frame,2)], [midFrame(1) midFrame(1)],'r', 'linewidth', 2);
+        plot(handles.ImagePlot, [midFrame(2) midFrame(2)], [1, size(frame,1)],'r', 'linewidth', 2);
+        hold(handles.ImagePlot, 'off');
+    end
+    
+    % open calibration window
+    try
+        handles.Calibration.Children;
+    catch
+        handles.Calibration = figure('name','Calibration window');
+        subplot(2,1,1); subplot(2,1,2); handles.Calibration.MenuBar = 'none';
+        
+        handles.updateCalibration = timer('Period',0.1,... %period
+                                          'ExecutionMode','fixedRate',... %{singleShot,fixedRate,fixedSpacing,fixedDelay}
+                                          'BusyMode','drop',... %{drop, error, queue}
+                                          'TasksToExecute',inf,...          
+                                          'StartDelay',0,...
+                                          'TimerFcn',@(src,evt)plotCalibration(handles));
+        start(handles.updateCalibration);
+        guidata(handles.WidefieldImager, handles);
+    end
+else
+    try
+        delete(findall(handles.ImagePlot,'Type','line'))
+        stop(handles.updateCalibration);
+        close(handles.Calibration);
+    end
+end
+
+
+function plotCalibration(handles)
+% this is to update the contents of the calibration figure
+
+% get image and center
+frame = getsnapshot(handles.vidObj);
+frame = frame(:,:,1);
+midFrame = round(size(frame)/2);
+
+% plot each line
+ax = handles.Calibration.Children(2);
+plot(ax, frame(midFrame(1), :))
+ax.TickLength = [0 0]; ax.XTickLabel = []; ax.YTickLabel = [];
+xlim(ax,[1 size(frame,2)]); ylim(ax,[0 256]);
+title(ax,'Horizontal axis', 'FontSize', 15);
+
+ax = handles.Calibration.Children(1);
+plot(ax, frame(:, midFrame(2)))
+ax.TickLength = [0 0]; ax.XTickLabel = []; ax.YTickLabel = [];
+xlim(ax,[1 size(frame,1)]); ylim(ax,[0 256]);
+title(ax,'Vertical axis', 'FontSize', 15);
