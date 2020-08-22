@@ -530,17 +530,15 @@ function WidefieldImager_CloseRequestFcn(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 %% move saved files to data save location
-temp = ls(handles.path.base);
+sFiles = dir([handles.path.base '*Snapshot*']);
+rFiles = dir([handles.path.base '*ROI*']);
+aFiles = [{sFiles.name} {rFiles.name}];
 
-sFiles = ~cellfun('isempty',((strfind(cellstr(ls(handles.path.base)),'Snapshot_')))); %identify snapshot files
-rFiles = ~cellfun('isempty',((strfind(cellstr(ls(handles.path.base)),'ROI')))); %identify ROI file
-aFiles = [temp(sFiles,:);temp(rFiles,:)]; %all files that should be moved
-
-if ~isdir(get(handles.DataPath,'String')) && ~isempty(aFiles) %create data path if not existent and if there is data to be moved
+if ~exist(get(handles.DataPath,'String'), 'dir') %create data path if not existent
     mkdir(get(handles.DataPath,'String'))
 end
 for iFiles = 1:size(aFiles,1)
-    movefile([handles.path.base aFiles(iFiles,:)],[get(handles.DataPath,'String') filesep aFiles(iFiles,:)]); %move files
+    movefile([handles.path.base aFiles{iFiles}],[get(handles.DataPath,'String') filesep aFiles{iFiles}]); %move files
 end
 
 %% clear running objects
@@ -581,16 +579,15 @@ else
     colormap(handles.ImagePlot,'jet');
     
     %%move saved files to actual data save location
-    temp = ls(handles.path.base);
-    sFiles = ~cellfun('isempty',((strfind(cellstr(ls(handles.path.base)),'Snapshot')))); %identify snapshot files
-    rFiles = ~cellfun('isempty',((strfind(cellstr(ls(handles.path.base)),'ROI.fig')))); %identify ROI file
-    aFiles = [temp(sFiles,:);temp(rFiles,:)]; %all files that should be moved
-    
-    if ~isdir(get(handles.DataPath,'String')) %create data path if not existent
+    sFiles = dir([handles.path.base '*Snapshot*']);
+    rFiles = dir([handles.path.base '*ROI*']);
+    aFiles = [{sFiles.name} {rFiles.name}];
+   
+    if ~exist(get(handles.DataPath,'String'), 'dir') %create data path if not existent
         mkdir(get(handles.DataPath,'String'))
     end
     for iFiles = 1:size(aFiles,1)
-        movefile([handles.path.base aFiles(iFiles,:)],[get(handles.DataPath,'String') filesep aFiles(iFiles,:)]); %move files
+        movefile([handles.path.base aFiles{iFiles}],[get(handles.DataPath,'String') filesep aFiles{iFiles}]); %move files
     end
     save([handles.DataPath.String filesep 'handles.mat'],'handles') %save recorder handles to be able to know all the settings.
     
@@ -853,7 +850,7 @@ else
             drawnow;
             clear Data frameTimes
             
-            disp(['Trial ' handles.TrialNr ' completed.']); toc;
+            disp(['Trial ' handles.TrialNr.String ' completed.']); toc;
             disp('==================================================');
             
             start(handles.vidObj); %get camera ready to be triggered again
@@ -912,17 +909,23 @@ function handles = CheckPath(handles)
 
 % Look for single-letter drives, starting at a: or c: as appropriate
 try
+    if ispc
     ret = {};
     for i = double('c') : double('z')
         if exist(['' i ':' filesep], 'dir') == 7
             ret{end+1} = [i ':']; %#ok<AGROW>
         end
     end
+    
+    elseif ismac
+       ret = dir('/Volumes/');
+       ret = {ret(3:end).name};
+    end
     handles.driveSelect.String = char(ret);
 end
 
 cPath = java.io.File(strtrim(handles.driveSelect.String(handles.driveSelect.Value,:))); %make sure this is OS independent
-if (cPath.getFreeSpace / 2^30) < handles.minSize && length(handles.driveSelect.String) > 1
+if (cPath.getFreeSpace / 2^30) < handles.minSize && length(handles.driveSelect.String) > 1 && cPath.getFreeSpace > 0
     answer = questdlg(['Only ' num2str((cPath.getFreeSpace / 2^30)) 'gb left on ' strtrim(handles.driveSelect.String(handles.driveSelect.Value,:)) filesep '. Change drive?'], ...
         'Drive select', 'Yes', 'No', 'No, stop asking me', 'Yes');
     if strcmp(answer, 'Yes')
@@ -994,7 +997,7 @@ if size(AllExperiments,2) < handles.ExperimentType.Value; handles.ExperimentType
 handles.path.ExpType = AllExperiments{handles.ExperimentType.Value}; %update path for current experiment type
 cPath = [handles.path.base 'Animals' filesep AllAnimals{handles.AnimalID.Value} filesep AllExperiments{handles.ExperimentType.Value}]; %assign current path
 
-if size(ls([cPath filesep date]),1) > 2 %check if folder for current date exist already and contains data
+if exist([cPath filesep date], 'dir') && length(dir([cPath filesep date])) > 2 %check if folder for current date exist already and contains data
     Cnt = 1;
     while exist([cPath filesep date '_' num2str(Cnt)],'dir')
         Cnt = Cnt +1; %update counter until it is ensured that current experiment name is not used already
@@ -1254,9 +1257,15 @@ end
 handles = CheckPath(handles);
 
 % check NI card
-daqs = daq.getDevices;
+try
+    daqs = daq.getDevices;
+catch
+    daqs = [];
+end
+
 if isempty(daqs)
-    disp('No NI devices found. Control acquisition with manual triggers instead.')
+    disp('No NI devices found or data acquisition toolbox missing.')
+    disp('Use software triggers instead.')
     handles.dNIdevice = [];
 else
     if isfield(handles,'dNIdevice')
@@ -1362,9 +1371,13 @@ try
         src.B1BinningHorizontal = '4';
         src.B2BinningVertical = '4';
     else
-        handles.FrameRate.Style = 'popupmenu'; %change menu style to indicate available frame rates
-        handles.FrameRate.String = set(src, 'FrameRate');
-        src.FrameRate = handles.FrameRate.String{1}; %use highest available frame rate
+        try
+            handles.FrameRate.Style = 'popupmenu'; %change menu style to indicate available frame rates
+            handles.FrameRate.String = set(src, 'FrameRate');
+            src.FrameRate = handles.FrameRate.String{1}; %use highest available frame rate
+        catch
+            handles.FrameRate.String = {'30'};
+        end
     end
     
     %setup and display live video feed in preview window
