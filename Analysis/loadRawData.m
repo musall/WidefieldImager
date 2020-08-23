@@ -34,7 +34,7 @@ else
             if ~exist('imgSize','var') || isempty(imgSize) %if imgSize is not given, it should be written into the file header
                 hSize = fread(fID,1,'double'); %header size
                 header = fread(fID,hSize,'double'); %Metadata. Default is: 1:x = Absolute timestamps for each frame, Last 4 values: Size of each dimensions in the matrix
-                imgSize = header(find(diff(header) < -1e3) + 1 : end); %Last 4 header values should contain the size of the data array.
+                imgSize = header(find(diff(header) < -1e3) + 1 : end)'; %Last 4 header values should contain the size of the data array.
             end
             data = fread(fID,[prod(imgSize),1],[dataType '=>' dataType]); %get data.
             if length(data) ~= prod(imgSize) % try again if insufficient data is found in .dat file. Sometimes fread does not get all values from file when reading from the server.
