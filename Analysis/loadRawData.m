@@ -1,52 +1,49 @@
-function [header,data] = loadRawData(cPath,Condition,dataType,pInd)
+function [header,data] = loadRawData(cFile, Condition, dataType, imgSize)
 % short routine to load data from WidefieldImager code.
-% cPath is the path of the file that should be opened. Condition is the
-% type of data file which will determine the way the data file is read.
-% Optional input 'pInd' defines a single pixel from which a data vector should
-% be extracted. pInd is a two-value vector for x-y pixel coordinates. This
-% means X and Y for image coordinates NOT matlab coordinates (which are
-% usually inverse).
+% cFile is the file that should be opened. Condition is either
+% analog to load analog data or frames to load widefield data. dataType is
+% the data type. imgSize should be a variable that contains the size of the
+% imaging data (as given by header = size(data)).
+% Supported are tif stacks, mj2 or mp4 videos and binary files.
 
 if ~exist('dataType','var') || isempty(dataType)
     dataType = 'uint16';
 end
 
-if ~exist('pInd','var') || isnan(pInd)
-    pInd = [];
-else
-    if length(pInd) ~= 2 || ~isnumeric(pInd)
-        error('Invalid input for index of selected pixel')
-    end
-end
+header = [];
+[~, ~, fileType] = fileparts(cFile); %check filetype.
 
-fID = fopen(cPath);
-switch lower(Condition)
-    case 'analog'
-        hSize = fread(fID,1,'double'); %header size
-        header = fread(fID,hSize,'double'); %Metadata. Default is: 1 = Time of Acquisition onset, 2 = Number of channels, 3 = number of values per channel
-        data = fread(fID,[header(end-1),header(end)],[dataType '=>' dataType]); %get data. Last 2 header values should contain the size of the data array.
-    case 'frames'
-        hSize = fread(fID,1,'double'); %header size
-        header = fread(fID,hSize,'double'); %Metadata. Default is: 1:x = Absolute timestamps for each frame, Last 4 values: Size of each dimensions in the matrix
+if strcmpi(fileType, '.tif')
+    info = imfinfo(cFile);
+    data = zeros(info(1).Height, info(1).Width, info(1).SamplesPerPixel, size(info,1), 'single');
+    for x = 1 : size(info,1)
+        data(:,:,:,x) = imread(cFile, x);
+    end
+elseif strcmpi(fileType, '.mj2') || strcmpi(fileType, '.mp4')
+    data = importdata(cFile);
+    data = squeeze(data(:,:,1,:));
+else
+    fID = fopen(cFile);
+    switch lower(Condition)
         
-        if ~isempty(pInd) %if extracting single pixel information
-            imSize = (header(find(diff(header) < -1e3) + 1)*header(find(diff(header) < -1e3) + 2))-1; %number of datapoints to make a single image minus one. skip that many datapoints to stick to the same pixel when using fread.
-            imStart = ((pInd(1)-1)*header(find(diff(header) < -1e3) + 1))+pInd(2)-1; %first value for selected pixel
-            fseek(fID,imStart*2,'cof'); %shift file pointer to the right pixel to start data extraction from file
-            data = fread(fID,header(find(diff(header) < -1e3) + 4),[dataType '=>' dataType],imSize*2); %get data.
-            if length(data) ~= header(end)
-                error('Could not extract all data values from pixel')
+        case 'analog'
+            hSize = fread(fID,1,'double'); %header size
+            header = fread(fID,hSize,'double'); %Metadata. Default is: 1 = Time of Acquisition onset, 2 = Number of channels, 3 = number of values per channel
+            data = fread(fID,[header(end-1),header(end)],[dataType '=>' dataType]); %get data. Last 2 header values should contain the size of the data array.
+        case 'frames'
+            if ~exist('imgSize','var') || isempty(imgSize) %if imgSize is not given, it should be written into the file header
+                hSize = fread(fID,1,'double'); %header size
+                header = fread(fID,hSize,'double'); %Metadata. Default is: 1:x = Absolute timestamps for each frame, Last 4 values: Size of each dimensions in the matrix
+                imgSize = header(find(diff(header) < -1e3) + 1 : end); %Last 4 header values should contain the size of the data array.
             end
-        else
-            data = fread(fID,[prod(header(find(diff(header) < -1e3) + 1 : end)),1],[dataType '=>' dataType]); %get data. Last 4 header values should contain the size of the data array.
-            if length(data) ~= prod(header(find(diff(header) < -1e3) + 1 : end)) %if insufficient data is found in .dat file. Sometimes fread does not get all values from file when reading from server.
-                fclose(fID);fID = fopen(cPath); %try loading data again
+            data = fread(fID,[prod(imgSize),1],[dataType '=>' dataType]); %get data.
+            if length(data) ~= prod(imgSize) % try again if insufficient data is found in .dat file. Sometimes fread does not get all values from file when reading from the server.
+                fclose(fID);fID = fopen(cFile); %try loading data again
                 hSize = fread(fID,1,'double'); %header size
                 header = fread(fID,hSize,'double'); %Metadata. Defautlt is: 1:x = Absolute timestamps for each frame, Last 4 values: Size of each dimensions in the matrix
-                data = fread(fID,[prod(header(find(diff(header) < -1e3) + 1 : end)),1],[dataType '=>' dataType]); %get data. Last 4 header values should contain the size of the data array.
+                data = fread(fID,[prod(imgSize),1],[dataType '=>' dataType]); %get data. Last 4 header values should contain the size of the data array.
             end
-            data = reshape(data,header(find(diff(header) < -1e3) + 1 : end)'); %reshape data into matrix
-        end
-end
-fclose(fID);
+            data = reshape(data,imgSize); %reshape data into matrix
+    end
+    fclose(fID);
 end

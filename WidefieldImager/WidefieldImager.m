@@ -1280,12 +1280,12 @@ else
         end
     end
     if ~checker
-        warning(['Could not find NI-DAQ: ' handles.daqName ' - Using board ' daqs(x).ID ' instead.'])
+        warning(['Could not find specified DAQ: ' handles.daqName ' - Using existing board ' daqs(x).ID ' instead.'])
         handles.daqName = daqs(x).ID;
     end
-        
-    handles.dNIdevice = daq.createSession('ni'); %object for communication with NI device - digital lines
-    handles.aNIdevice = daq.createSession('ni'); %object for communication with NI device - analog lines
+    
+    handles.dNIdevice = daq.createSession(daqs(x).Vendor.ID); %object for communication with DAQ - digital lines
+    handles.aNIdevice = daq.createSession(daqs(x).Vendor.ID); %object for communication with DAQ - analog lines
     handles.aNIdevice.IsContinuous = true; %set to continous acquisition
     handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
     
