@@ -2,10 +2,10 @@
 
 %% Set basic variables
 fclose('all');
-cPath = 'G:\Mapping\Animals\Dummy Subject\Default\23-Aug-2020_2'; %Widefield data path
+cPath = 'E:\BpodImager\Animals\Fez71\SpatialDisc\21-Aug-2020'; %Widefield data path
 fName = 'Frames'; %name imaging files
 numChans = 1; %number of excitation wavelengths (1 for blue only, 2 for alternating illumination)
-dataType = 'uint8'; %type of imaging data usually uint16 or uint8
+dataType = 'uint16'; %type of imaging data usually uint16 or uint8
 
 %% load data
 rawVids = dir([cPath filesep fName '_*']); %video files
@@ -25,15 +25,20 @@ allTimes = cell(1,length(trials));
 for iTrials = 1 : length(trials)
     
     if numChans == 1
-        load([cPath filesep 'frameTimes_' num2str(trials(iTrials))], 'imgSize', 'frameTimes') %get size of imaging file
         cFile = [cPath filesep rawVids(sortIdx(iTrials)).name];
-        [~, cData] = loadRawData(cFile, 'Frames', dataType, imgSize);
+        try
+            load([cPath filesep 'frameTimes_' num2str(trials(iTrials))], 'imgSize', 'frameTimes') %get size of imaging file
+            [~, cData] = loadRawData(cFile, 'Frames', dataType, imgSize);
+        catch
+            [header, cData] = loadRawData(cFile, 'Frames', dataType);
+            
         if length(size(cData)) == 4 % convert rgb image to gray
             cData =  squeeze(sum(cat(3, 0.2989 .* cData(:,:,1,:), 0.5870 .* cData(:,:,2,:), 0.1140 .* cData(:,:,3,:)), 3));
         end
     end
     allData{iTrials} = mean(reshape(cData,[], size(cData,3),1))'; %keep frame average
     allTimes{iTrials} = frameTimes;
+    
 end
 
 % combine all trials
