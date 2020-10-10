@@ -818,7 +818,7 @@ else
             
             % save frametimes and size of widefield data (this is useful to read binary data later)
             imgSize = size(Data);
-            cFile = ([get(handles.DataPath,'String') filesep 'frameTimes_' get(handles.TrialNr,'String') '.mat']);
+            cFile = ([get(handles.DataPath,'String') filesep 'frameTimes_' num2str(str2double(handles.TrialNr.String), '%04i') '.mat']);
             save(cFile, 'frameTimes', 'imgSize', 'removedFrames'); %save frametimes
             
             numChans = 1 + (handles.lightMode.Value == 3); %two channels if lightmode is set to 'mixed'

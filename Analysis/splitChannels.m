@@ -9,20 +9,19 @@ falseAlign = false;
 
 %% load data and check channel identity
 cFile = [opts.fPath filesep 'Analog_' num2str(trialNr) '.dat']; %current file to be read
-[~,Analog] = Widefield_LoadData(cFile,'Analog'); %load analog data
+[~,Analog] = loadRawData(cFile,'Analog'); %load analog data
 Analog = double(Analog);
 
-cFile = [opts.fPath filesep opts.fName '_' num2str(trialNr) '.dat']; %current file to be read
-[header,data] = Widefield_LoadData(cFile,'Frames'); %load video data
-
+load([opts.fPath filesep 'frameTimes_' num2str(trialNr, '%04i') '.mat'], 'imgSize', 'frameTimes'); %get data size
+frameTimes = frameTimes * 86400*1e3; %convert to seconds
+cFile = [opts.fPath filesep opts.fName '_' num2str(trialNr, '%04i') '.dat']; %current file to be read
+[~, data] = loadRawData(cFile,'Frames',[], imgSize); %load video data
 
 %reshape data to compute mean frame intensities
 dSize = size(data);
 data = reshape(data,[],dSize(end));
 temp = zscore(mean(single(data)));
 data = squeeze(reshape(data,dSize));
-frameTimes = header(1:end-length(dSize)) * (86400*1e3); %extract frame times from header and convert to millisecond timestamps
-
 
 bFrame = find(temp < min(temp)*.75); %index for black frames
 if bFrame(1) == 1 %if first frame is dark, remove initial frames from data until LEDs are on
@@ -33,7 +32,6 @@ if bFrame(1) == 1 %if first frame is dark, remove initial frames from data until
     temp(1:cIdx) = [];
     frameTimes(1:cIdx) = [];
 end
-
 
 %determine imaging rate - either given as input or determined from data
 if isfield(opts,'frameRate')
@@ -64,7 +62,6 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         warning(['Failed to find trigger signals. lastBlue: ' num2str(lastBlue) '; lastHemo: ' num2str(lastHemo) '; trialNr: ' num2str(trialNr)])
     end
    
-   
     bFrame = find(temp < min(temp)*.75); %index for first black frame (assuming the last frame is really a dark frame)
     bFrame(bFrame < round(size(temp,2) / 2)) = []; %make sure black frame is in the second half of recording.
     
@@ -89,7 +86,6 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         lastFrame = size(Analog,2) - lastHemo; %index for end of last frame
     end
     
-    
     frameTimes = (frameTimes - frameTimes(bFrame - 1)) + lastFrame; %realign frameTime based on time of last non-dark frame
     blueInd = blueInd(frameTimes < size(Analog,2));
     blueInd(bFrame - 1:end) = []; %exclude black and last non-black frame
@@ -99,7 +95,6 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
     
     blueData = data(:,:,blueInd);
     hemoData = data(:,:,~blueInd);
-    
     
     % find all triggers in stim line and choose the one that is on the longest as the true stimulus trigger
     % apparently this line can be contaminated by noise
@@ -134,7 +129,6 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         else
             lastHemoIdx = hemoStim + opts.postStim - 1;
         end
-        
         
         %make sure both channels have equal length
         chanDiff = length(blueStim - opts.preStim : lastBlueIdx) - length(hemoStim - opts.preStim : lastHemoIdx);

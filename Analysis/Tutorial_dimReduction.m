@@ -1,12 +1,12 @@
 %construct path to data folder and give some basic info
 opts.fPath = [pwd filesep 'DemoRec' filesep]; %path to demo recording
-opts.fName = 'Frames'; %name of imaging data files.
+opts.fName = 'Frames_2_540_640_uint16'; %name of imaging data files.
 opts.nrBlocks = 49; %nr of blocks for svd
 opts.overlap = 20; % pixel overlap between blocks
 opts.dimCnt = 200; %nr of components in the final dataset
 opts.blockDims = 25; %number of dimensions from SVD per block
-opts.stimLine = 3; %analog line that contains stimulus trigger.
-opts.trigLine = [6 7]; %analog lines for blue and violet light triggers.
+opts.stimLine = 6; %analog line that contains stimulus trigger.
+opts.trigLine = [8 9]; %analog lines for blue and violet light triggers.
 opts.useGPU = false; %flag to use GPU acceleration
 
 % check for handles file from WidefieldImager to get frame rate.
@@ -66,7 +66,7 @@ nV = reshape(nV, size(nV,1), [], 2); % split channels
 U = reshape(U,size(snap,1),size(snap,2),[]); %reshape to frame format
 
 % do hemodynamic correction
-[Vc, regC, T, hemoVar] = SvdHemoCorrect(U, nV(:,:,1), nV(:,:,2), opts.frameRate, frameCnt(2,:));
+[Vc, regC, T, hemoVar] = SvdHemoCorrect(U, nV(:,:,1), nV(:,:,2), opts.frameRate, frameCnt(2,:), 10, true);
 
 save([opts.fPath 'Vc.mat'],'Vc','U','Sv','frameCnt', 'stimTime','fAlign', '-v7.3');
 save([opts.fPath 'HemoCorrection.mat'],'regC','T', 'hemoVar')
