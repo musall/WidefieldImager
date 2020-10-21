@@ -59,7 +59,7 @@ if datenum(version('-date')) < 735857 %check if matlab is 2014b or newer
 end
 
 % some variables
-handles.daqName = 'Dev3'; %name of the national instruments DAQ board
+handles.daqName = 'Dev1'; %name of the national instruments DAQ board
 handles.extraFrames = 5; %amount of frames where the light is switched off at the end of the recording. This helps to ensure proper alignment with analog data.
 handles.minSize = 100; % minimum free disk space before producing a warning (in GB)
 handles.serverPath = '\\your_server_path'; %data server path
@@ -130,6 +130,7 @@ function WaitForTrigger_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of WaitForTrigger
+
 if get(hObject, 'Value')
     set(hObject, 'String' , 'Wait for Trigger ON')
     set(hObject, 'BackgroundColor' , '[0 1 0]')
@@ -161,6 +162,7 @@ elseif ~handles.WaitForTrigger.Value && ~handles.SnapshotTaken %Not waiting for 
     handles.CurrentStatus.String = 'Not ready';
 end
 
+  
 
 function BaselineFrames_Callback(hObject, eventdata, handles)
 % hObject    handle to BaselineFrames (see GCBO)
@@ -348,7 +350,7 @@ else
     cNr = max(str2num(temp)); %get highest snapshot nr
     cNr(isempty(cNr)) = 0; %replace empty with 0 if no previous snapshot existed
     save([handles.path.base 'Snapshot_' num2str(cNr+1) '.mat'],'snap') %save snapshot
-    imwrite(snap,[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg'], 'Bitdepth', 8) %save snapshot as jpg
+    imwrite(mat2gray(snap),[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg']) %save snapshot as jpg
     
     %     imshow(snap,'XData',[0 1],'YData',[0 1]); colormap gray; axis image;
     imshow(snap); axis image; title(['Saved as Snapshot ' num2str(cNr+1)]);
@@ -537,7 +539,7 @@ aFiles = [{sFiles.name} {rFiles.name}];
 if ~exist(get(handles.DataPath,'String'), 'dir') %create data path if not existent
     mkdir(get(handles.DataPath,'String'))
 end
-for iFiles = 1:size(aFiles,1)
+for iFiles = 1:length(aFiles)
     movefile([handles.path.base aFiles{iFiles}],[get(handles.DataPath,'String') filesep aFiles{iFiles}]); %move files
 end
 
@@ -586,7 +588,7 @@ else
     if ~exist(get(handles.DataPath,'String'), 'dir') %create data path if not existent
         mkdir(get(handles.DataPath,'String'))
     end
-    for iFiles = 1:size(aFiles,1)
+    for iFiles = 1:length(aFiles)
         movefile([handles.path.base aFiles{iFiles}],[get(handles.DataPath,'String') filesep aFiles{iFiles}]); %move files
     end
     save([handles.DataPath.String filesep 'handles.mat'],'handles') %save recorder handles to be able to know all the settings.
@@ -706,6 +708,7 @@ else
             handles.vidObj.FramesPerTrigger = Inf; %acquire until stoppped
             trigger(handles.vidObj); %start image acquisition
             handles.BlueLight.Value = true; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED on
+            handles.lockGUI.Value = true; handles = lockGUI_Callback(handles.lockGUI, [], handles); %run callback for lock button
             drawnow;
             
             while handles.AcqusitionStatus.Value %keep running until poststim data is recorded
@@ -779,7 +782,6 @@ else
                     if recPause < 0.2; recPause = 0.2; end %at least 200ms pause
                     
                     handles.BlueLight.Value = false; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED off
-                    drawnow;
                     
                     if ~isempty(handles.dNIdevice)
                         pause(recPause); handles.aNIdevice.stop(); %pause to ensure all analog data is written, then stop analog object
@@ -824,7 +826,7 @@ else
             numChans = 1 + (handles.lightMode.Value == 3); %two channels if lightmode is set to 'mixed'
 
             cFile = sprintf('%s%cFrames_%d_%d_%d_%s_%s', get(handles.DataPath,'String'), ...
-                filesep, numChans, size(Data,1), size(Data,2), class(Data), num2str(str2double(handles.TrialNr.String), '%04i')); %name for imaging data file
+                filesep, numChans, size(Data,2), size(Data,1), class(Data), num2str(str2double(handles.TrialNr.String), '%04i')); %name for imaging data file
             
             if ~handles.saveTIF.Value %saw as raw binary (default because of high writing speed)
                 sID = fopen([cFile '.dat'], 'Wb'); %open binary stimulus file
@@ -855,7 +857,8 @@ else
             
             start(handles.vidObj); %get camera ready to be triggered again
             set(handles.CurrentStatus,'String','Waiting for trigger');
-            
+            handles.lockGUI.Value = false; handles = lockGUI_Callback(handles.lockGUI, [], handles); %run callback for lock button
+
         end
     end
 end
@@ -1290,12 +1293,13 @@ else
     handles.aNIdevice.Rate = 1000; %set sampling rate to 1kHz
     
     addDigitalChannel(handles.dNIdevice,handles.daqName,'port1/line0:2','OutputOnly'); %output channels for blue, violet and mixed light (1.0:blue, 1.1:violet, 1.2:mixed)
+    outputSingleScan(handles.dNIdevice,false(1,3)); %make sure outputs are false
     addDigitalChannel(handles.dNIdevice,handles.daqName,'port0/line0:2','InputOnly'); %input channels to trigger data acquisition and control timing of animal behavior (0.2: trial start, 0.3: stim on)
-    
+
     ch = addAnalogInputChannel(handles.aNIdevice,handles.daqName, 0:3, 'Voltage');
     for x = 1 : length(ch)
         ch(x).TerminalConfig = 'SingleEnded'; %use single-ended recordings. Use differential when recording low SNR signals (needs to line for +/-)
-    end
+    end  
 end
 guidata(hObject,handles);
 
@@ -1347,12 +1351,18 @@ function handles = lockGUI_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-if hObject.Value == 0
-    handles.WaitForTrigger.Enable = 'on';
-    hObject.String = 'Released';
-elseif hObject.Value == 1
+if islogging(handles.vidObj)
+    hObject.Value = true;
     handles.WaitForTrigger.Enable = 'off';
     hObject.String = 'Locked';
+else
+    if hObject.Value == 0
+        handles.WaitForTrigger.Enable = 'on';
+        hObject.String = 'Released';
+    elseif hObject.Value == 1
+        handles.WaitForTrigger.Enable = 'off';
+        hObject.String = 'Locked';
+    end
 end
 
 % function to check camera settings
@@ -1423,7 +1433,7 @@ function StopTrigger_Callback(hObject, eventdata, handles)
 
 
 % --- Executes on button press in triggerLock.
-function handles =triggerLock_Callback (hObject, eventdata, handles)
+function handles = triggerLock_Callback (hObject, eventdata, handles)
 % hObject    handle to triggerLock (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -1484,7 +1494,7 @@ if hObject.Value
     try
         handles.Calibration.Children;
     catch
-        handles.Calibration = figure('name','Calibration window');
+        handles.Calibration = figure('name','Calibration window','CloseRequestFcn',@(src,evt)closeCalibration(handles));
         subplot(2,1,1); subplot(2,1,2); handles.Calibration.MenuBar = 'none';
         
         handles.updateCalibration = timer('Period',0.1,... %period
@@ -1517,11 +1527,19 @@ midFrame = round(size(frame)/2);
 ax = handles.Calibration.Children(2);
 plot(ax, frame(midFrame(1), :))
 ax.TickLength = [0 0]; ax.XTickLabel = []; ax.YTickLabel = [];
-xlim(ax,[1 size(frame,2)]); ylim(ax,[0 256]);
+xlim(ax,[1 size(frame,2)]); ylim(ax,[0 intmax(class(frame))]);
 title(ax,'Horizontal axis', 'FontSize', 15);
 
 ax = handles.Calibration.Children(1);
 plot(ax, frame(:, midFrame(2)))
 ax.TickLength = [0 0]; ax.XTickLabel = []; ax.YTickLabel = [];
-xlim(ax,[1 size(frame,1)]); ylim(ax,[0 256]);
+xlim(ax,[1 size(frame,1)]); ylim(ax,[0 intmax(class(frame))]);
 title(ax,'Vertical axis', 'FontSize', 15);
+
+function closeCalibration(handles)
+% this is when the calibration figure gets closed
+
+handles.CalibrationMode.Value = false; 
+CalibrationMode_Callback(handles.CalibrationMode, [], handles); drawnow;
+delete(gcf);
+

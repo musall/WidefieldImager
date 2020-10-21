@@ -10,6 +10,7 @@ if ~exist('dataType','var') || isempty(dataType)
     dataType = 'uint16';
 end
 
+data = [];
 header = [];
 [~, ~, fileType] = fileparts(cFile); %check filetype.
 

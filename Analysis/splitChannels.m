@@ -1,10 +1,13 @@
-function [blueData,blueTimes,hemoData,hemoTimes,stimOn,falseAlign,sRate] = splitChannels(opts,trialNr)
+function [blueData,blueTimes,hemoData,hemoTimes,stimOn,falseAlign,sRate] = splitChannels(opts,trialNr, fileType)
 % Code to separate blue and violet channel from widefield data. This needs
 % analog data that contains a stimulus onset from which a pre and
 % poststimulus dataset can be returned. Also requires trigger channels for
 % blue/violet LEDs and some dark frames at the end.
 % This code is the newer version of Widefield_CheckChannels.
 
+if ~exist('fileType', 'var')
+    fileType = '.dat';
+end
 falseAlign = false;
 
 %% load data and check channel identity
@@ -14,7 +17,7 @@ Analog = double(Analog);
 
 load([opts.fPath filesep 'frameTimes_' num2str(trialNr, '%04i') '.mat'], 'imgSize', 'frameTimes'); %get data size
 frameTimes = frameTimes * 86400*1e3; %convert to seconds
-cFile = [opts.fPath filesep opts.fName '_' num2str(trialNr, '%04i') '.dat']; %current file to be read
+cFile = [opts.fPath filesep opts.fName '_' num2str(trialNr, '%04i') fileType]; %current file to be read
 [~, data] = loadRawData(cFile,'Frames',[], imgSize); %load video data
 
 %reshape data to compute mean frame intensities
@@ -86,7 +89,14 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
         lastFrame = size(Analog,2) - lastHemo; %index for end of last frame
     end
     
-    frameTimes = (frameTimes - frameTimes(bFrame - 1)) + lastFrame; %realign frameTime based on time of last non-dark frame
+%     %get number of rejected frames before data was saved
+%     nrFrames = bFrame - 1; %number of exposed frames in the data
+%     nrTriggers = size(find(diff(Analog(opts.trigLine(1),:))> 2500),2) + size(find(diff(Analog(opts.trigLine(2),:))> 2500),2); %nr of triggers
+%     removedFrames = nrTriggers - nrFrames;
+%     save([opts.fPath filesep 'frameTimes_' num2str(trialNr, '%04i') '.mat'], 'imgSize', 'frameTimes', 'removedFrames'); %get data size
+
+    %realign frameTime based on time of last non-dark frame
+    frameTimes = (frameTimes - frameTimes(bFrame - 1)) + lastFrame;
     blueInd = blueInd(frameTimes < size(Analog,2));
     blueInd(bFrame - 1:end) = []; %exclude black and last non-black frame
     
@@ -99,7 +109,8 @@ if any(~isnan(opts.trigLine)) || any(opts.trigLine > size(Analog,1))
     % find all triggers in stim line and choose the one that is on the longest as the true stimulus trigger
     % apparently this line can be contaminated by noise
     stimOn = find(diff(double(Analog(opts.stimLine,:)) > 1500) == 1);
-    ind = find((find(diff(double(Analog(opts.stimLine,:)) > 1500) == -1) - stimOn) > 2,1); %only use triggers that are more than 2ms long
+    stimOff = find(diff(double(Analog(opts.stimLine,:)) > 1500) == -1);
+    ind = find((stimOff - stimOn(1:length(stimOff))) > 2,1); %only use triggers that are more than 2ms long
     stimOn = stimOn(ind) + 1;
     
     if ~isinf(opts.postStim)
@@ -217,58 +228,4 @@ if opts.plotChans
     title(['Hemo frame average - Trial ' num2str(trialNr)])
     drawnow;
 end
-end
-
-
-function [header,data] = Widefield_LoadData(cPath,Condition,dataType,pInd)
-% short routine to load data from WidefieldImager code.
-% cPath is the path of the file that should be opened. Condition is the
-% type of data file which will determine the way the data file is read.
-% Optional input 'pInd' defines a single pixel from which a data vector should
-% be extracted. pInd is a two-value vector for x-y pixel coordinates. This
-% means X and Y for image coordinates NOT matlab coordinates (which are
-% usually inverse).
-
-if ~exist('dataType','var') || isempty(dataType)
-    dataType = 'uint16';
-end
-
-if ~exist('pInd','var') || isnan(pInd)
-    pInd = [];
-else
-    if length(pInd) ~= 2 || ~isnumeric(pInd)
-        error('Invalid input for index of selected pixel')
-    end
-end
-
-fID = fopen(cPath);
-switch lower(Condition)
-    case 'analog'
-        hSize = fread(fID,1,'double'); %header size
-        header = fread(fID,hSize,'double'); %Metadata. Default is: 1 = Time of Acquisition onset, 2 = Number of channels, 3 = number of values per channel
-        data = fread(fID,[header(end-1),header(end)],[dataType '=>' dataType]); %get data. Last 2 header values should contain the size of the data array.
-    case 'frames'
-        hSize = fread(fID,1,'double'); %header size
-        header = fread(fID,hSize,'double'); %Metadata. Default is: 1:x = Absolute timestamps for each frame, Last 4 values: Size of each dimensions in the matrix
-        
-        if ~isempty(pInd) %if extracting single pixel information
-            imSize = (header(find(diff(header) < -1e3) + 1)*header(find(diff(header) < -1e3) + 2))-1; %number of datapoints to make a single image minus one. skip that many datapoints to stick to the same pixel when using fread.
-            imStart = ((pInd(1)-1)*header(find(diff(header) < -1e3) + 1))+pInd(2)-1; %first value for selected pixel
-            fseek(fID,imStart*2,'cof'); %shift file pointer to the right pixel to start data extraction from file
-            data = fread(fID,header(find(diff(header) < -1e3) + 4),[dataType '=>' dataType],imSize*2); %get data.
-            if length(data) ~= header(end)
-                error('Could not extract all data values from pixel')
-            end
-        else
-            data = fread(fID,[prod(header(find(diff(header) < -1e3) + 1 : end)),1],[dataType '=>' dataType]); %get data. Last 4 header values should contain the size of the data array.
-            if length(data) ~= prod(header(find(diff(header) < -1e3) + 1 : end)) %if insufficient data is found in .dat file. Sometimes fread does not get all values from file when reading from server.
-                fclose(fID);fID = fopen(cPath); %try loading data again
-                hSize = fread(fID,1,'double'); %header size
-                header = fread(fID,hSize,'double'); %Metadata. Defautlt is: 1:x = Absolute timestamps for each frame, Last 4 values: Size of each dimensions in the matrix
-                data = fread(fID,[prod(header(find(diff(header) < -1e3) + 1 : end)),1],[dataType '=>' dataType]); %get data. Last 4 header values should contain the size of the data array.
-            end
-            data = reshape(data,header(find(diff(header) < -1e3) + 1 : end)'); %reshape data into matrix
-        end
-end
-fclose(fID);
 end

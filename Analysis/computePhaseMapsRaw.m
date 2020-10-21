@@ -1,10 +1,7 @@
-function computePhaseMaps(fPath,Animal,nTrials,winSize,smth,rotateImage)
-% dbstop Widefield_ComputePhaseMaps 109;
+function computePhaseMapsRaw(fPath,Animal,nTrials,winSize,smth,rotateImage)
 
 %% Set basic variables
-fName = 'Vc'; %name of data file
-screenSize = [119.07 143.13]; %size of screen in visual degrees
-phaseMapSmth = 1; %smoothing of phasemaps. can help to get better sign maps.
+% dbstop computePhaseMapsRaw 145;
 
 if ~strcmpi(fPath(end),filesep)
     fPath = [fPath filesep];
@@ -26,12 +23,23 @@ if ~exist('rotateImage','var')
     rotateImage = 0;                    %rotate image if the orientation is not as required
 end
 
+opts.fPath = fPath;
+opts.fName = 'Frames_2_540_640_uint16';
+opts.plotChans = true;
+opts.trigLine = [2 3];
+opts.blueHigh = true;
+opts.stimLine = 4; %trigger from stimulator
+opts.photoDiode = 5; %channel of photodiode
+opts.preStim = 1;
+opts.alignRes = 10;
+opts.hemoCorrect = true;
+opts.frameRate = 30; %framerate in Hz
+opts.fileExt = '.mj2'; %type of video file. Default is mj2.
+screenSize = [119.07 143.13]; %size of screen in visual degrees
+phaseMapSmth = 1; %smoothing of phasemaps. can help to get better sign maps.
 
 %% data source
 disp(['Current path: ' fPath]); tic
-
-%Load svd-compressed data. Contains all imaging data and timestamps in ms for each frame.
-load([fPath fName], 'Vc', 'U', 'frameCnt', 'stimTime');
 
 %load settings
 cFile = ls([fPath Animal '*settings.mat']);
@@ -52,6 +60,7 @@ iBarConds(4,:) = BarOrient == 0  & BarDirection == 1; % vertical, moving right t
 StimDur = StimData.VarVals(strcmpi(StimData.VarNames,'StimDuration') | strcmpi(StimData.VarNames,'trialDuration'),:); %Duration of a given trial
 barFreq = StimData.VarVals(strcmpi(StimData.VarNames,'cyclesPerSecond'),:); %bar speed in a given trial
 numCycles = unique(StimDur(Trials)./(1./barFreq(Trials))); %number of cycles in current trial
+opts.postStim = StimDur(1);
 
 % check for number of cycles and trials in dataset
 if length(numCycles) ~= 1
@@ -63,47 +72,76 @@ avgData = cell(4,length(nTrials)); % averaged sequence for each condition and tr
 fTransform = cell(4,length(nTrials)); % fourier transforms for each condition and trialcount 
 
 %% get single trials and average for each condition to end up with one sequence
+tic;
 condCnt = zeros(1,4); %counter for how many sequences were saved in each condition
 for iTrials = Trials
-    %% load data
-    trialStart = sum(frameCnt(2,1:iTrials)) - frameCnt(2,iTrials) + 1; %first frame of current trial
-    Data = reshape(U,[],size(U,3)) * Vc(:,trialStart : sum(frameCnt(2,1:iTrials)));
-    Data = reshape(Data, size(U,1), size(U,2), []);  
+    
+    [blueData,frameTimes,hemoData,~,~,~,~] = splitChannels(opts,iTrials,opts.fileExt); %load mixed or blue only data from video files
+    binSize = floor((max(size(blueData(:,:,1)))/winSize)/40); %compute binsize to get closest to 40 pixels/mm (recommended for segmentation code).
+    if winSize > 1 && winSize < inf
+        blueData = arrayResize(blueData,binSize); %do spatial binning
+        hemoData = arrayResize(hemoData,binSize); %do spatial binning
+    end
+    if opts.hemoCorrect
+        Data = Widefield_HemoCorrect(blueData,hemoData,1:ceil(opts.preStim * opts.frameRate),5); %hemodynamic correction
+    else
+        Data = blueData; clear blueData
+    end
+    Data(:,:,1:ceil(opts.preStim * opts.frameRate)) = []; %throw away baseline
+    toc;
+    
+    cFile = [fPath filesep 'Analog_' num2str(iTrials) '.dat']; %current file to be read
+    [~,Analog] = Widefield_LoadData(cFile,'Analog'); %load analog data
+    Analog = double(Analog);
+    
+    %% check for missing frames or dropped frames in the camera and throw warning if anything seems off
+    diodeTrace = smooth(Analog(opts.photoDiode,:));
+    dSwitch = (diff((diodeTrace./std(diodeTrace) > 1)) == 1) + (diff((diodeTrace./std(diodeTrace) > 1)) == -1); %times when the photodiode detects a frame change
+    dSwitch(dSwitch<0) = 0;
+    if sum(diff(find(dSwitch)) > StimData.sRate*1000*1.5) > 1 %if time difference between two frames is larger as 1.5 times the display refresh rate
+        disp([num2str(sum(diff(find(dSwitch)) > StimData.sRate*1000*1.5)) ' skipped frames in trial ' int2str(iTrials) '; based on photodiode']);
+        disp(['Average time difference between stimulation frames: ' num2str(mean(diff(find(dSwitch)))) ' ms']);
+    end
+
+    dSwitch = (diff(Analog(opts.stimLine,:) > 1000) == 1) + (diff(Analog(opts.stimLine,:) < 1000) == 1); %times when the stimulator triggers a frame change
+    dSwitch(dSwitch<0) = 0;
+    if any(diff(find(dSwitch)) > StimData.sRate*1000*1.5) %if time difference between two frames is larger as 1.5 times the display refresh rate
+        disp([num2str(sum(diff(find(dSwitch)) > StimData.sRate*1000*1.5)) ' skipped frames in trial ' int2str(iTrials) '; based on trigger signal']);
+        disp(['Average time difference between stimulation frames: ' num2str(mean(diff(find(dSwitch)))) ' ms']);
+    end
+
+    sFrameDur = round(1000/opts.frameRate); %average duration between acquired frames
+    dSwitch = diff(frameTimes - frameTimes(1)); %duration between all acquired frames
+    if any(abs(dSwitch - sFrameDur) > sFrameDur*1.5)
+        disp([num2str(sum(abs(dSwitch - sFrameDur) > sFrameDur*1.5)) ' lost camera frames in trial ' int2str(iTrials) '; something broken with camera settings?']);
+        disp(['Average time difference between acquired frames: ' num2str(sFrameDur) ' ms']);
+    end
     
     %% compute the amount of required frames and collect from data
-    stimFrames = StimDur(iTrials)*sRate; %required frames for stim sequence
-    Data = Data(:,:,stimTime(iTrials): stimTime(iTrials) + stimFrames - 1); %only use stimulation part of the data;
-
-    binSize = floor((max(size(Data(:,:,1)))/winSize)/40); %compute binsize to get closest to 40 pixels/mm (recommended for segmentation code).
-    if winSize > 1 && winSize < inf
-        bData = arrayResize(Data,binSize); %do spatial binning
-    else
-        bData = Data;
+    if numCycles ~= floor(((1/opts.frameRate)*size(Data,3))/(1/barFreq(iTrials))) %make sure that number of cycles matches the current data
+        error('Number of presented cycles does not match the length of available data')
     end
-    clear Data
-
+    
     %% running average
     for x = 1:length(nTrials)
-        cTrialCnt = rem(condCnt(iBarConds(:,iTrials))+1,nTrials(x)); %current trial cycle for running average (reset to 1, when 'nTrials' is reached)
-        
-        if cTrialCnt == 1 || condCnt(iBarConds(:,iTrials)) == 0 %start cycle for running average
-            avgData{iBarConds(:,iTrials),x} = bData; %starting dataset for running average with set trialcount
+        cTrialCnt = rem(condCnt(iBarConds(:,iTrials))+1,nTrials(x)); %current trial cycle for running average (resets to 1, after 'nTrials' is reached)
+               
+        if (cTrialCnt == 1 && condCnt(iBarConds(:,iTrials)) >= nTrials(x)) || condCnt(iBarConds(:,iTrials)) == 0 || nTrials(x) == 1 %start cycle for running average
+            avgData{iBarConds(:,iTrials),x} = Data; %starting dataset for running average with set trialcount
         else
-            avgData{iBarConds(:,iTrials),x} = (avgData{iBarConds(:,iTrials),x}.*cTrialCnt + bData) ./ (cTrialCnt+1); %produce running average
+            avgData{iBarConds(:,iTrials),x} = (avgData{iBarConds(:,iTrials),x}.*condCnt(iBarConds(:,iTrials)) + Data) ./ (condCnt(iBarConds(:,iTrials))+1); %produce running average
         end
         
         if cTrialCnt == 0 %reached requested trialcount. Compute fourier transform and increase counter
             temp = fft(avgData{iBarConds(:,iTrials),x},[],3);
-            fTransform{iBarConds(:,iTrials),x}(TrialCnts(iBarConds(:,iTrials),x),:,:) = squeeze(temp(:,:,numCycles+1)); clear temp
+            fTransform{iBarConds(:,iTrials),x}(TrialCnts(iBarConds(:,iTrials),x),:,:) = squeeze(temp(:,:,numCycles + 1)); clear temp
             TrialCnts(iBarConds(:,iTrials),x) = TrialCnts(iBarConds(:,iTrials),x)+1; %increase counter for running average when required trialcount is reached
         end
     end
     condCnt(iBarConds(:,iTrials)) =  condCnt(iBarConds(:,iTrials))+1;
-    if rem(iTrials, 10) == 0
-        disp(['Done loading trial ' int2str(iTrials) '/' int2str(max(Trials))]);
-    end
+    disp(['Done loading trial ' int2str(iTrials) '/' int2str(max(Trials))]);
 end
-clear Data bData
+clear Data
 
 %% do fft analysis to get phase and magnitude maps
 for iTrials = 1
@@ -112,7 +150,6 @@ for iTrials = 1
         for iRuns = 1:size(fTransform{iConds,iTrials},1)
         
            magMaps{Cnt,iRuns} = imrotate(squeeze(abs(fTransform{iConds,iTrials}(iRuns,:,:).*fTransform{iConds+1,iTrials}(iRuns,:,:))),rotateImage); %combined magnitude map.
-
            a1 = mod(-angle(fTransform{iConds,iTrials}(iRuns,:,:)), 2 * pi);
            a2 = mod(-angle(fTransform{iConds+1,iTrials}(iRuns,:,:)), 2 * pi);
            a1(isnan(a1)) = 0; a2(isnan(a2)) = 0;
@@ -157,13 +194,12 @@ for iTrials = 1
     imagesc(spatialFilterGaussian(cVFS{1,iTrials},smth)); axis image;colorbar
     caxis([-0.5 0.5])
     title(['VisualFieldSign - binSize = ' num2str(binSize) '; smth = ' num2str(smth)]);
-    savefig(h,[fPath '\' Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.fig']);
+    savefig(h,[fPath filesep Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.fig']);
     h.PaperUnits = 'inches';
     set(h, 'PaperPosition', [0 0 15 15]);
-    saveas(h,[fPath '\' Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.jpg'])
+    saveas(h,[fPath filesep Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.jpg'])
     clear h
 end
-
 
 %% get phase and amplitude + vessel map for plotting
 trialSelect = 1; %use this to select which trialcount should be used for subsequent figures
