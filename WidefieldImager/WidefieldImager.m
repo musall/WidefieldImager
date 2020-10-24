@@ -689,12 +689,14 @@ else
             set(handles.CurrentStatus,'String','Recording baseline'); %update status indicator
             set(handles.AcqusitionStatus, 'value', true); %set acquisition status to active
             set(handles.AcqusitionStatus, 'String' , 'Recording')
+            handles.BlueLight.Value = true; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED on
+            handles.lockGUI.Value = true; handles = lockGUI_Callback(handles.lockGUI, [], handles); %run callback for lock button
+            drawnow;
             
             if ~isempty(handles.dNIdevice)
                 aID = fopen([get(handles.DataPath,'String') filesep 'Analog_' get(handles.TrialNr,'String') '.dat'], 'wb'); %open binary file for analog data
                 handles.aListen = addlistener(handles.aNIdevice,'DataAvailable', @(src, event)logAnalogData(src,event,aID,handles.AcqusitionStatus)); %listener to stream analog data to disc
                 handles.aNIdevice.startBackground(); %start analog data streaming
-                pause(0.2);
             end
             
             if strcmpi(handles.vidName, 'pcocameraadaptor')
@@ -705,11 +707,9 @@ else
             bSize = ceil(str2double(handles.BaselineFrames.String)*frameRate); %number of frames in baseline
             sSize = ceil(str2double(handles.PostStimFrames.String)*frameRate); %number of frames after stimulus trigger
 
+            pause(0.2); %make sure light and analog streaming are on before triggering the camera
             handles.vidObj.FramesPerTrigger = Inf; %acquire until stoppped
             trigger(handles.vidObj); %start image acquisition
-            handles.BlueLight.Value = true; BlueLight_Callback(handles.BlueLight, [], handles) %switch LED on
-            handles.lockGUI.Value = true; handles = lockGUI_Callback(handles.lockGUI, [], handles); %run callback for lock button
-            drawnow;
             
             while handles.AcqusitionStatus.Value %keep running until poststim data is recorded
                 if ~isempty(handles.dNIdevice)
@@ -815,13 +815,16 @@ else
             end
             
             %% Save data to folder and clear
+            preStim = bIdx; %number of prestim frames
+            postStim = size(Data,4)-bIdx; %number of poststim frames
+            
             set(handles.CurrentStatus,'String','Saving data');
-            disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(bIdx) '; Poststim Frames: ' num2str(size(Data,4)-(bIdx)) '; Dark Frames: ' num2str(handles.extraFrames) '; Saving data ...'])
+            disp(['Trial ' get(handles.TrialNr,'String') '; Baseline Frames: ' num2str(preStim) '; Poststim Frames: ' num2str(postStim) '; Dark Frames: ' num2str(handles.extraFrames) '; Saving data ...'])
             
             % save frametimes and size of widefield data (this is useful to read binary data later)
             imgSize = size(Data);
             cFile = ([get(handles.DataPath,'String') filesep 'frameTimes_' num2str(str2double(handles.TrialNr.String), '%04i') '.mat']);
-            save(cFile, 'frameTimes', 'imgSize', 'removedFrames'); %save frametimes
+            save(cFile, 'frameTimes', 'imgSize', 'removedFrames', 'preStim', 'postStim'); %save frametimes
             
             numChans = 1 + (handles.lightMode.Value == 3); %two channels if lightmode is set to 'mixed'
 
