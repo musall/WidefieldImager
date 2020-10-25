@@ -61,8 +61,8 @@ analogCheck = dir([opts.fPath filesep 'Analog_*.dat']);
 
 fileCnt = size(rawCheck,1);
 for iFiles = 1 : fileCnt %go through files and check for trialNr. this is used for transformation to .mat files later.
-    temp = textscan(rawCheck(iFiles).name,'%s%f%s','Delimiter','_');
-    trials(iFiles) = temp{2};
+    temp = textscan(rawCheck(iFiles).name,'%s%f%f%f%s%f%s','Delimiter','_');
+    trials(iFiles) = temp{6};
 end
 trials = sort(trials);
 

@@ -92,11 +92,16 @@ end
 if ~isempty(handles.vidName)
     fprintf('Using %s as current video adapter\n',handles.vidName);
     handles.vidObj = checkCamera(handles.vidName, handles); %get non-PCO video object
-    preview(handles.vidObj,handles.ImagePlot.Children); %start preview
-    maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
-    cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
-    colormap(handles.ImagePlot,cMap);
-else
+    
+    if ~isempty(handles.vidObj)
+        preview(handles.vidObj,handles.ImagePlot.Children); %start preview
+        maxRange = floor(256*0.7); %limit intensity to 70% of dynamic range to avoid ceiling effects
+        cMap = gray(maxRange); cMap(end+1:256,:) = repmat([1 0 0 ],256-maxRange,1);
+        colormap(handles.ImagePlot,cMap);
+    end
+end
+
+if isempty(handles.vidObj)
     warning('No camera found. Type "imaqhwinfo" to make sure your camera is porperly installed and running.')
 end
     
@@ -150,6 +155,7 @@ elseif handles.WaitForTrigger.Value && ~handles.SnapshotTaken %Waiting for trigg
     handles.AcqusitionStatus.BackgroundColor = [1 0 0];
     set(handles.AcqusitionStatus, 'String' , 'Inactive')
     handles.CurrentStatus.String = 'No snapshot taken';
+    disp('Please press the TAKE SNAPSHOT button. Recording will only start when at least one snapshot is taken.')
 elseif ~handles.WaitForTrigger.Value && handles.SnapshotTaken %Not waiting for trigger but snapshot is taken
     handles.AcqusitionStatus.Value = false;
     handles.AcqusitionStatus.BackgroundColor = [1 0 0];
@@ -300,7 +306,7 @@ function BlueLight_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 if isempty(handles.dNIdevice)
-    disp('LED control not available - NI device is missing')
+%     disp('LED control not available - NI device is missing')
     set(hObject, 'Value',false)
 else
     if hObject.Value
@@ -349,7 +355,7 @@ else
     temp(~ismember(temp,'0123456789')) = ' '; %replace non-integer characters with blanks
     cNr = max(str2num(temp)); %get highest snapshot nr
     cNr(isempty(cNr)) = 0; %replace empty with 0 if no previous snapshot existed
-    save([handles.path.base 'Snapshot_' num2str(cNr+1) '.mat'],'snap') %save snapshot
+    save([handles.path.base 'Snapshot_' num2str(cNr+1) '.mat'],'snap') % snapshot
     imwrite(mat2gray(snap),[handles.path.base 'Snapshot_' num2str(cNr+1) '.jpg']) %save snapshot as jpg
     
     %     imshow(snap,'XData',[0 1],'YData',[0 1]); colormap gray; axis image;
@@ -591,8 +597,14 @@ else
     for iFiles = 1:length(aFiles)
         movefile([handles.path.base aFiles{iFiles}],[get(handles.DataPath,'String') filesep aFiles{iFiles}]); %move files
     end
-    save([handles.DataPath.String filesep 'handles.mat'],'handles') %save recorder handles to be able to know all the settings.
     
+     %save recorder handles to know all the settings later. Need to disable some warnings temporarily to avoid confusion.
+    warning('off','MATLAB:Figure:FigureSavedToMATFile');
+    warning('off','imaq:saveobj:recursive');
+    save([handles.DataPath.String filesep 'handles.mat'],'handles')
+    warning('on','MATLAB:Figure:FigureSavedToMATFile');
+    warning('on','imaq:saveobj:recursive');
+
     % check if server location is available and create folder for behavioral data
     % 'open' indicates that this is the folder that relates to the current imaging session
     if exist(handles.serverPath,'dir')
@@ -804,7 +816,7 @@ else
                     frameTimes = datenum(cat(1,frameTimes(:).AbsTime)); %collect absolute timestamps
                     
                     if bIdx < bSize %if baseline has less frames as set in the GUI
-                        disp(['Collected only ' num2str(bIdx) ' instead of ' num2str(bSize) ' frames in the baseline - check settings'])
+                        disp(['Collected only ' num2str(bIdx) ' instead of ' num2str(bSize) ' frames in the baseline. Not enough time between trial and stimulus trigger.'])
                     else
                         bIdx = bSize;
                     end
@@ -1358,6 +1370,7 @@ if islogging(handles.vidObj)
     hObject.Value = true;
     handles.WaitForTrigger.Enable = 'off';
     hObject.String = 'Locked';
+    disp('Cant release recording control while acquiring data. Wait until trial is completed.')
 else
     if hObject.Value == 0
         handles.WaitForTrigger.Enable = 'on';

@@ -33,9 +33,9 @@ blueV = bsxfun(@minus, blueV, nanmean(blueV));
 hemoV = bsxfun(@minus, hemoV, nanmean(hemoV));
 
 % high-pass blueV and hemoV above 0.1Hz
-[b, a] = butter(2,0.1/sRate, 'high');
+[b, a] = butter(2,0.2/sRate, 'high');
 blueV(~isnan(blueV(:,1)),:) = single(filtfilt(b,a,double(blueV(~isnan(blueV(:,1)),:))));
-hemoV(~isnan(blueV(:,1)),:) = single(filtfilt(b,a,double(hemoV(~isnan(blueV(:,1)),:))));
+hemoV(~isnan(hemoV(:,1)),:) = single(filtfilt(b,a,double(hemoV(~isnan(hemoV(:,1)),:))));
 
 % get core pixels from U
 mask = isnan(U(:,:,1));
@@ -45,7 +45,7 @@ U = arrayShrink(U,mask,'merge'); %only use selected pixels from mask
 if sRate > highCut
     hemoV = smoothWidefield(hemoV,frameCnt,sRate,highCut); %smooth violet channel
     if smoothBlue
-        hemoV = smoothWidefield(hemoV,frameCnt,sRate,highCut); %smooth blue channel
+        blueV = smoothWidefield(blueV,frameCnt,sRate,highCut); %smooth blue channel
     end
 end
 
@@ -84,7 +84,7 @@ Vout = reshape(Vout', A, B);
 
 %% nested functions
 function data = smoothWidefield(data,frameCnt,sRate,highCut)
-[b, a] = butter(2,highCut/sRate, 'low'); %filter below 15Hz to smooth data
+[b, a] = butter(4,highCut/sRate, 'low'); %filter below 15Hz to smooth data
 for iTrials = 1:size(frameCnt,2)
     if iTrials == 1
         cIdx = 1 : frameCnt(iTrials); % first trial
