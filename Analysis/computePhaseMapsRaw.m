@@ -1,7 +1,7 @@
 function computePhaseMapsRaw(fPath,Animal,nTrials,winSize,smth,rotateImage)
 
 %% Set basic variables
-% dbstop computePhaseMapsRaw 145;
+% dbstop computePhaseMapsRaw 145; %optional - this can be used to pause the code and adjust variables like the amount of smoothing to get a better map
 
 if ~strcmpi(fPath(end),filesep)
     fPath = [fPath filesep];
@@ -144,7 +144,7 @@ end
 clear Data
 
 %% do fft analysis to get phase and magnitude maps
-for iTrials = 1
+for iTrials = 2
     Cnt = 1;
     for iConds = [1 3] %this expects 4 directions to construct horizontal and vertical map
         for iRuns = 1:size(fTransform{iConds,iTrials},1)

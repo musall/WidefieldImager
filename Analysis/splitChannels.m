@@ -5,7 +5,7 @@ function [blueData,blueTimes,hemoData,hemoTimes,stimOn,falseAlign,sRate] = split
 % blue/violet LEDs and some dark frames at the end.
 % This code is the newer version of Widefield_CheckChannels.
 
-if ~exist('fileType', 'var')
+if ~exist('fileType', 'var') || isempty(fileType)
     fileType = '.dat';
 end
 falseAlign = false;

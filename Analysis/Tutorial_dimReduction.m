@@ -1,5 +1,20 @@
-%construct path to data folder and give some basic info
-opts.fPath = [pwd filesep 'DemoRec' filesep]; %path to demo recording
+% This example code demonstrates how to perform dimensionality reduction 
+% using singular value decomposition (SVD) on an widefield imaging datset. 
+% The function 'blockSVD' performs an initial SVD step by splitting the 
+% data into smaller image blocks.  Make sure to have enough disc space 
+% available because the code will create some temporary files.
+% Afterwards the data from smaller imaging blocks are combined together and
+% a second SVD is used to create a low-dimensional representation of the
+% whole dataset.
+% Lastly, the function SvdHemoCorrect runs hemodynamic correction on the
+% data to isolate true neural signals from the imaging data.
+%
+% You can test this on either behavioral or mapping example data. Just
+% change the variable 'fPath' to the datapath that contains the imaging
+% data. For questions, contact simon.musall@gmail.com
+
+%% construct path to data folder and give some basic info
+opts.fPath = fPath; %path to demo recording
 opts.fName = 'Frames_2_540_640_uint16'; %name of imaging data files.
 opts.nrBlocks = 49; %nr of blocks for svd
 opts.overlap = 20; % pixel overlap between blocks
