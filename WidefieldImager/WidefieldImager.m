@@ -549,6 +549,10 @@ for iFiles = 1:length(aFiles)
     movefile([handles.path.base aFiles{iFiles}],[get(handles.DataPath,'String') filesep aFiles{iFiles}]); %move files
 end
 
+%% ensure calibration mode is off
+handles.CalibrationMode.Value = false; 
+CalibrationMode_Callback(handles.CalibrationMode, [], handles); drawnow;
+
 %% clear running objects
 imaqreset
 guidata(hObject,handles);
@@ -576,6 +580,10 @@ if sum(data) == length(data) %all triggers are active - leave acqusition mode an
     handles.CurrentStatus.String = 'Snapshot taken';
     return
 else
+    %% ensure calibration mode is off
+    handles.CalibrationMode.Value = false;
+    CalibrationMode_Callback(handles.CalibrationMode, [], handles); drawnow;
+
     src = getselectedsource(handles.vidObj);
     if strcmpi(handles.vidName,'pcovideoadapter')
         src.E2ExposureTime = 1000/str2double(handles.FrameRate.String) * 1000; %make sure current framerate is used
@@ -1491,6 +1499,10 @@ function CalibrationMode_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of CalibrationMode
 
 if hObject.Value
+    
+    %make sure preview is on
+    handles.StartPreview.Value = true;
+    StartPreview_Callback(handles.StartPreview, [], handles);
     
     % get image and center
     frame = getsnapshot(handles.vidObj);
