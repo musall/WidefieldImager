@@ -44,7 +44,7 @@ else
 end
 
 % check if pre- and poststim are given. use all frames if not.
-if ~isfield(opts,'preStim') || ~isfield(opts,'preStim')
+if ~isfield(opts,'preStim') || ~isfield(opts,'postStim')
     opts.preStim = 0;
     opts.postStim = inf;
 else

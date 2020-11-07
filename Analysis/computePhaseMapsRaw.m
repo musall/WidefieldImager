@@ -24,7 +24,7 @@ if ~exist('rotateImage','var')
 end
 
 opts.fPath = fPath;
-opts.fName = 'Frames_2_540_640_uint16';
+opts.fName = 'Frames_2_640_540_uint16';
 opts.plotChans = true;
 opts.trigLine = [2 3];
 opts.blueHigh = true;
@@ -34,7 +34,7 @@ opts.preStim = 1;
 opts.alignRes = 10;
 opts.hemoCorrect = true;
 opts.frameRate = 30; %framerate in Hz
-opts.fileExt = '.mj2'; %type of video file. Default is mj2.
+opts.fileExt = '.dat'; %type of video file. Use '.dat' for binary files (also works for .tif or .mj2 files)
 screenSize = [119.07 143.13]; %size of screen in visual degrees
 phaseMapSmth = 1; %smoothing of phasemaps. can help to get better sign maps.
 
@@ -66,7 +66,13 @@ opts.postStim = StimDur(1);
 if length(numCycles) ~= 1
     error('Number of cycles per trial is inconsistent. This code is not meant to handle that.')
 end
-disp(['Trials per condition: ' num2str(length(Trials)/4) ' - Computing phasemaps from [' num2str(nTrials) '] trials']);
+
+% check that phasemap intervals make sense and also make sure that a
+% phasemap is computed for the average over all trials in each condition
+nTrials(nTrials <= 0 | nTrials > length(Trials)/4) = length(Trials)/4; 
+nTrials = [nTrials floor(length(Trials)/4)]; nTrials = unique(nTrials);
+
+disp(['Trials per condition: ' num2str(length(Trials)/4) ' - Computing phasemaps every [' num2str(nTrials) '] trials']);
 TrialCnts = ones(4,length(nTrials));
 avgData = cell(4,length(nTrials)); % averaged sequence for each condition and trialcount
 fTransform = cell(4,length(nTrials)); % fourier transforms for each condition and trialcount 
@@ -202,7 +208,7 @@ for iTrials = 2
 end
 
 %% get phase and amplitude + vessel map for plotting
-trialSelect = 1; %use this to select which trialcount should be used for subsequent figures
+trialSelect = 2; %use this to select which trialcount should be used for subsequent figures
 plotPhaseMap = spatialFilterGaussian(cVFS{1,trialSelect},smth);
 plotPhaseMap = imresize(plotPhaseMap,binSize);
 

@@ -63,25 +63,24 @@ for trialNr = 1 : nrTrials
             
     %spatially downsample imaging data
     data = arrayResize(data, 4); %this reduces resolution to ~80um / pixel
+    if imgSize(end) > nrFrames
     if imgSize(end) < nrFrames
         allData(:,:,1:imgSize(end),trialNr) = data;
     else
-        allData(:,:,:,trialNr) = data(:,:,1:nrFrames);
     end
-    
     if rem(trialNr,floor(nrTrials / 5)) == 0
         fprintf('%d / %d files loaded\n', trialNr, nrTrials)
     end
 end
 clear data bData vData
 
-if ~opts.hemoCorrect %this step is automatically done during hemodynamic correction
+if ~opts.hemoCorrect && ~opts.preProc %this step is automatically done during hemodynamic correction
     
     % compute dF/F by subtracting and dividing the pre-stimulus baseline
     baselineAvg = nanmean(nanmean(allData(:,:, baselineDur, :),3), 4);
     allData = reshape(allData, dataSize(1),dataSize(2), []); %merge all frames to subtract and divide baseline
-    allData = bsxfun(@minus, allData, baselineAvg); % subtract baseline
-    allData = bsxfun(@rdivide, allData, baselineAvg); % divide baseline
+    allData = bsxfun(@minus, allData, dataAvg); % subtract baseline
+    allData = bsxfun(@rdivide, allData, dataAvg); % divide baseline
     allData = reshape(allData, dataSize(1),dataSize(2),nrFrames,nrTrials); %shape back to initial form
     
 end
@@ -100,10 +99,7 @@ title('Stimulus-triggered activity')
 
 %show an activity trace
 subplot(1,2,2); hold on;
-
-
-meanTrace = squeeze(allData(105,75,:,:)); %average from an interesting pixel (this one is for hindpaw area)
-% meanTrace = squeeze(nanmean(reshape(allData,[], size(allData,3), size(allData,4)),1)); %average activity over all pixels
+meanTrace = squeeze(nanmean(reshape(allData,[], size(allData,3), size(allData,4)),1)); %average activity over all pixels
 timeTrace = ((1:nrFrames) ./ opts.sRate) - opts.preStim; %time in seconds
 plotLine = stdshade(meanTrace', 0.5, 'r', timeTrace); %plot average activity
 plot([0 0], plotLine.Parent.YLim, '--k'); %show stimulus onset
