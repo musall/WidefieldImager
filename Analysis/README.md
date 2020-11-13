@@ -18,7 +18,7 @@ All example data sets contain a stimulus trigger and the script shows how to pro
 Lastly, the script loads the trial-averaged data into a browsing GUI called 'compareMovie'. Here you can explore the imaging dataset by using the bottom slider to move through imaging frames. The GUI also contains several other useful options such as adjust the colormap and color range, rotating the image and isolating a flourescence trace (by clicking get trace and then clicking the part of the image to compute the trace in). It can also be used to save the imaging data as a movie file in .avi format or isolate different areas through tresholding.
 
 
-![picture](images/compareMovie_example.png)
+![picture](https://github.com/musall/WidefieldImager/blob/master/images/compareMovie_example.png)
 
 # Tutorial_dimReduction
 This is a demo script to demonstrate a pre-processing pipeling for dimensionality reduction and subsequent hemodynamic reduction of widefield imaging data. 
