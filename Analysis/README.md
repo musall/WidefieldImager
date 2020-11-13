@@ -1,5 +1,5 @@
 # Widefield analysis
-Clone or download the repository to your analysis PC and add it to your Matlab path. You can analyze your own imaging data (ideally captured with [WidefieldImager] (https://github.com/musall/WidefieldImager) or download a demo recording from [here](https://drive.google.com/drive/folders/1rodUg0jui6s41nWYfIG0aEAqKqFuRb8q).
+Clone or download the repository to your analysis PC and add it to your Matlab path. You can analyze your own imaging data (ideally captured with [WidefieldImager](https://github.com/musall/WidefieldImager) or download a demo recording from [here](https://drive.google.com/drive/folders/1rodUg0jui6s41nWYfIG0aEAqKqFuRb8q).
 
 There are two basic tutorials for basic analysis of imaging data (Tutorial_basicAnalysis.m) and dimensionality reduction (Tutorial_dimReduction.m). In either tutorial, first navigate to the folder that contains your imaging data. For demo recordings, first extract the zip file and then assign the path to the data as the variable 'dataPath'.
 
@@ -16,6 +16,7 @@ After loading the imaging data, it is spatially downsampled to reduce the data s
 
 All example data sets contain a stimulus trigger and the script shows how to produce a trial-averaged stimulus response map and an averaged flourence trace from an area of interest.
 Lastly, the script loads the trial-averaged data into a browsing GUI called 'compareMovie'. Here you can explore the imaging dataset by using the bottom slider to move through imaging frames. The GUI also contains several other useful options such as adjust the colormap and color range, rotating the image and isolating a flourescence trace (by clicking get trace and then clicking the part of the image to compute the trace in). It can also be used to save the imaging data as a movie file in .avi format or isolate different areas through tresholding.
+
 
 ![picture](images/compareMovie_example.png)
 
