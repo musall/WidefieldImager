@@ -1,6 +1,8 @@
 # WidefieldImager
-This repo contains Matlab-based acquisition software and a pre-processing pipeline for widefield imaging. 
-The software was used for the publication 'Single-trial neural dynamics are dominated by richly varied movements' by Musall and Kaufman et al.. 
+This repo contains a Matlab-based acquisition software and a pre-processing pipeline for widefield imaging. 
+The WidefieldImager software was used for the publication 'Single-trial neural dynamics are dominated by richly varied movements' by Musall and Kaufman et al.. 
+
+Documention and demo scripts for widefield analysis are [here](https://github.com/musall/WidefieldImager/tree/master/Analysis).
 
 Imaging data from the study can be found [here](http://repository.cshl.edu/id/eprint/38599/).
 
@@ -77,20 +79,3 @@ By default the imaging data is saved in a flat binary file called 'Frames_*curre
 Once the session is completed, click the 'Locked' button on the right side of the 'Recording status' panel (red box in left image below). This unlocks the control button on the left, labeled 'Wait for Trigger ON'. Click the button to end the current session (right image below).
 
 ![picture](images/endSession.png)
-
-# Widefield pre-processing software
-Clone or download the repository to your analysis PC and add it to your Matlab path. You can either analysis your own imaging data or download a demo recording from the CSHL repository (in the folder 'DemoRec'). Navigate to the folder that contains your imaging data in a folder named 'DemoRec', then type ```edit Tutorial_dimReduction.m```
-
-Tutorial_dimReduction is a demo script that contains different variables that are relevant for pre-processing. All variables are described in the script and should be self-explanatory. Write an issue report if there are any problems and I'll try to assist.
-
-The pipeline has multiple steps: blockSVD separates the imaging frames into smaller blocks and performs linear dimensionality using randomized SVD. This steps returns block-wise data 'bV' and 'bU'.
-A second SVD is used to isolate common temporal dimensions across all blocks, representing the main temporal components for the whole data set. These components 'nV' are then used to compute the corresponding whole-frame spatial components 'U'.
-Lastly, 'SvdHemoCorrect' performs hemo-dynamic correction on the low-dimensional data by regressing out fluoresence with violet illumination from blue illumination frames.
-
-The resulting dataset 'Vc' represents the corrected imaging dataset. To restore individual frames simply transpose U and Vc (second dimension of Vc are frames). 
-For example
-
-```rawData = svdFrameReconstruct(U,Vc(:,1:10));```
-
-will restore the first 10 frames in the current dataset. 
-The 'index frameCnt' contains the number of frames per trial and 'stimTime' indicates at which trial a stimulus was presented'. Using these variables you can reconstruct imaging data from different trials or responses to stimulus events of interest.

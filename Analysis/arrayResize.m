@@ -14,6 +14,12 @@ if ~exist('outtype','var')
     outtype = 'default'; %datatype. Default will return doubles.
 end
 
+logicalOut = false;
+if strcmpi(outtype,'logical')
+    outtype = 'default'; %datatype. Default will return doubles.
+    logicalOut = true; %flag to convert output to logicals
+end
+    
 if isempty(bin) || isinf(bin) || bin < 1
     DataOut = DataIn;
 else
@@ -40,4 +46,8 @@ else
     DataOut = reshape(DataOut,[dSize(1)/bin,dSize(2),dSize(3:end)]);
     DataOut = permute(DataOut,[ind(2) ind(1) ind(3:end)]); %permute matrix back to original
     
+end
+
+if logicalOut
+    DataOut = logical(DataOut);
 end

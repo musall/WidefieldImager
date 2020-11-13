@@ -5,10 +5,15 @@
 %
 % You can test this on either behavioral or mapping example data. Just
 % change the variable 'fPath' to the datapath that contains the imaging
-% data. For questions, contact simon.musall@gmail.com
+% data. The settings below are adjusted to produce an example map for
+% somatosensory hindpaw stimulation, when using the dataset
+% 'dataset3_tactile_hindpawMap'. It can be downloaded from the CSHL
+% reposotory: http://labshare.cshl.edu/shares/library/repository/38599/
+%
+% For questions, contact simon.musall@gmail.com
 
 %% construct path to data folder and give some basic info
-opts.fPath = fPath; %path to imaging data
+opts.fPath = dataPath; %path to imaging data
 opts.fName = 'corrFrames_1_640_540_uint16'; %name of imaging data files.
 opts.stimLine = 4; %analog line that contains stimulus trigger.
 opts.trigLine = [2 3]; %analog lines for blue and violet light triggers.
@@ -17,9 +22,9 @@ opts.postStim = 1; %post-stimulus duration in seconds
 opts.plotChans = false; %flag to show separate channels when loading data
 opts.sRate = 30; %sampling rate in Hz
 opts.downSample = 4; %spatial downsampling factor
-opts.hemoCorrect = false; %hemodynamic correction is optional
+opts.hemoCorrect = false; %hemodynamic correction is optional (this only works with dual-color data in datasets 1,2 and 4).
 opts.fileExt = '.dat'; %type of video file. Use '.dat' for binary files (also works for .tif or .mj2 files)
-opts.preProc = true; %case if data has already been processed (single channel data with correct framecount) and should just be loaded.
+opts.preProc = true; %case if data is single channel and can be loaded directly (this is only true for example dataset 3).
 
 %% load imaging data
 rawFiles = dir([opts.fPath filesep opts.fName '*']); %find data files
@@ -100,8 +105,6 @@ title('Stimulus-triggered activity')
 
 %show an activity trace
 subplot(1,2,2); hold on;
-
-
 meanTrace = squeeze(allData(105,75,:,:)); %average from an interesting pixel (this one is for hindpaw area)
 % meanTrace = squeeze(nanmean(reshape(allData,[], size(allData,3), size(allData,4)),1)); %average activity over all pixels
 timeTrace = ((1:nrFrames) ./ opts.sRate) - opts.preStim; %time in seconds
@@ -112,3 +115,6 @@ xlim([min(timeTrace) max(timeTrace)])
 axis square; xlabel('time after stimulus (s)'); ylabel('fluorescence change (dF/F)');
 title('Average change over all pixels')
 
+%% explore average data stack
+avgData = squeeze(nanmean(allData,4)); %show average over all trials
+compareMovie(avgData); %use this GUI to browse the widefield data stack

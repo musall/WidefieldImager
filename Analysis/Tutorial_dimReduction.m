@@ -14,7 +14,7 @@
 % data. For questions, contact simon.musall@gmail.com
 
 %% construct path to data folder and give some basic info
-opts.fPath = fPath; %path to demo recording
+opts.fPath = dataPath; %path to demo recording
 opts.fName = 'Frames_2_540_640_uint16'; %name of imaging data files.
 opts.nrBlocks = 49; %nr of blocks for svd
 opts.overlap = 20; % pixel overlap between blocks
