@@ -9,6 +9,8 @@ The first tutorial 'Tutorial_basicAnalysis' will work on any of the example data
 
 The second tutorial 'Tutorial_dimReduction' will only work for the demo datasets 1,2 and 4 but not dataset3_tactile_hindpawMap (because the script expects dual-channel imaging data with blue and violet excitation light).
 
+Lastly, computePhaseMapsRaw can be used to create visual phase maps for the localization of visual areas in cortex. Use either example dataset 2 or 4 to test this function.
+
 # Tutorial_basicAnalysis
 This is a demo script for some basic analysis that can be done with widefield imaging data. It shows how to load imaging data and collect it in a larger data array for subsequent analysis. When using 'dataset3_tactile_hindpawMap', imaging data is already properly aligned to a stimulus onset and contains single-channel imaging data. When using other example datasets that contain imaging data with blue and violet illumination, the data is split into blue and violet imaging stacks (in this case opts.preProc should be set to false). If opts.hemoCorrect is true, blue and violet data can also be used for hemo-dynamic correction of each pixel in the imaging data.
 
@@ -42,4 +44,9 @@ will restore the first 10 frames in the current dataset.
 
 The 'index frameCnt' contains the number of frames per trial and 'stimTime' indicates at which trial a stimulus was presented'. Using these variables you can reconstruct imaging data from different trials or responses to stimulus events of interest.
 
+# computePhaseMapsRaw
+This function generates visual phase maps from cortical imaging data. Download example dataset 2 or 4 or use your own cortical imaging data. A detailed description on visual phase maps and how to create the visual stimulation for visual mapping can be found in this [protocol](https://www.nature.com/articles/nprot.2016.158) by Juavinett et al.
 
+To use the function, simply provide the path to the dataset ('dataPath') and the name of the animal (Plex66 for dataset2 or Fez73 for dataset4).
+
+![picture](https://github.com/musall/WidefieldImager/blob/master/images/phaseMap_example.png)
