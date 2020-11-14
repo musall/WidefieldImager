@@ -1,10 +1,10 @@
-function computePhaseMapsRaw(fPath,Animal,nTrials,winSize,smth,rotateImage)
+function computePhaseMapsRaw(dataPath,Animal,nTrials,winSize,smth,rotateImage)
 
 %% Set basic variables
 % dbstop computePhaseMapsRaw 145; %optional - this can be used to pause the code and adjust variables like the amount of smoothing to get a better map
 
-if ~strcmpi(fPath(end),filesep)
-    fPath = [fPath filesep];
+if ~strcmpi(dataPath(end),filesep)
+    dataPath = [dataPath filesep];
 end
 
 if ~exist('nTrials','var')
@@ -23,7 +23,7 @@ if ~exist('rotateImage','var')
     rotateImage = 0;                    %rotate image if the orientation is not as required
 end
 
-opts.fPath = fPath;
+opts.fPath = dataPath;
 opts.fName = 'Frames_2_640_540_uint16';
 opts.plotChans = true;
 opts.trigLine = [2 3];
@@ -39,11 +39,11 @@ screenSize = [119.07 143.13]; %size of screen in visual degrees
 phaseMapSmth = 1; %smoothing of phasemaps. can help to get better sign maps.
 
 %% data source
-disp(['Current path: ' fPath]); tic
+disp(['Current path: ' dataPath]); tic
 
 %load settings
-cFile = ls([fPath Animal '*settings.mat']);
-load([fPath cFile], 'StimData');
+cFile = ls([dataPath Animal '*settings.mat']);
+load([dataPath cFile], 'StimData');
 Trials = 1 : str2double(StimData.handles.NrTrials);
 sRate = round(1 / StimData.sRate) / 2; %frame rate in Hz
 
@@ -96,7 +96,7 @@ for iTrials = Trials
     Data(:,:,1:ceil(opts.preStim * opts.frameRate)) = []; %throw away baseline
     toc;
     
-    cFile = [fPath filesep 'Analog_' num2str(iTrials) '.dat']; %current file to be read
+    cFile = [dataPath filesep 'Analog_' num2str(iTrials) '.dat']; %current file to be read
     [~,Analog] = Widefield_LoadData(cFile,'Analog'); %load analog data
     Analog = double(Analog);
     
@@ -200,10 +200,10 @@ for iTrials = 2
     imagesc(spatialFilterGaussian(cVFS{1,iTrials},smth)); axis image;colorbar
     caxis([-0.5 0.5])
     title(['VisualFieldSign - binSize = ' num2str(binSize) '; smth = ' num2str(smth)]);
-    savefig(h,[fPath filesep Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.fig']);
+    savefig(h,[dataPath filesep Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.fig']);
     h.PaperUnits = 'inches';
     set(h, 'PaperPosition', [0 0 15 15]);
-    saveas(h,[fPath filesep Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.jpg'])
+    saveas(h,[dataPath filesep Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.jpg'])
     clear h
 end
 
@@ -217,8 +217,8 @@ plotAmpMap =(plotAmpMap-min(plotAmpMap(:)))./(max(plotAmpMap(:))- min(plotAmpMap
 plotAmpMap = spatialFilterGaussian(plotAmpMap,25); %smoothed magnitude map
 
 %get vessel image.
-cFile = ls([fPath 'Snapshot_1.mat']);
-load([fPath cFile],'snap');
+cFile = ls([dataPath 'Snapshot_1.mat']);
+load([dataPath cFile],'snap');
 snap = double(imrotate(snap,rotateImage));
 snap =(snap-min(snap(:)))./(max(snap(:))- min(snap(:))); %normalize between 0 and 1
 
@@ -232,13 +232,13 @@ h = figure;
 imagesc(plotPhaseMap); colormap jet; 
 caxis([-0.5 0.5])
 title([Animal ' - PhaseMap']);axis image
-savefig(h,[fPath Animal '_RawPhaseMap.fig']);
-saveas(h,[fPath Animal '_RawPhaseMap.jpg']);
-save([fPath 'plotPhaseMap.mat'],'plotPhaseMap');
-save([fPath 'plotAmpMap.mat'],'plotAmpMap');
-save([fPath 'cMagMaps.mat'],'cMagMaps');
-save([fPath 'cPhaseMaps.mat'],'cPhaseMaps');
-save([fPath 'cVFS.mat'],'cVFS');
+savefig(h,[dataPath Animal '_RawPhaseMap.fig']);
+saveas(h,[dataPath Animal '_RawPhaseMap.jpg']);
+save([dataPath 'plotPhaseMap.mat'],'plotPhaseMap');
+save([dataPath 'plotAmpMap.mat'],'plotAmpMap');
+save([dataPath 'cMagMaps.mat'],'cMagMaps');
+save([dataPath 'cPhaseMaps.mat'],'cPhaseMaps');
+save([dataPath 'cVFS.mat'],'cVFS');
 
 h = figure;
 imagesc(snap);axis image; colormap gray; freezeColors; hold on
@@ -246,8 +246,8 @@ vfsIm = imagesc(plotPhaseMap); colormap jet;
 caxis([-0.5 0.5]);
 set(vfsIm,'AlphaData',plotAmpMap); axis image
 title([Animal ' - PhaseMap + Vesselmap'])
-savefig(h,[fPath Animal '_phaseMap.fig']);
-saveas(h,[fPath Animal '_phaseMap.jpg'])
+savefig(h,[dataPath Animal '_phaseMap.fig']);
+saveas(h,[dataPath Animal '_phaseMap.jpg'])
 
 
 
