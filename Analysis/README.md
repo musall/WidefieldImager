@@ -47,6 +47,6 @@ The 'index frameCnt' contains the number of frames per trial and 'stimTime' indi
 # computePhaseMapsRaw
 This function generates visual phase maps from cortical imaging data. Download raw example dataset 2 or 3 or use your own cortical imaging data. A detailed description on visual phase maps and how to create the visual stimulation for visual mapping can be found in this [protocol](https://www.nature.com/articles/nprot.2016.158) by Juavinett et al.
 
-To use the function, simply provide the path to the dataset ('dataPath') and the name of the animal (Plex66 for dataset2 or Fez73 for dataset4).
+To use the function, simply provide the path to the dataset ('dataPath') and the name of the animal (Plex66 for dataset2 or Fez73 for dataset3).
 
 ![picture](https://github.com/musall/WidefieldImager/blob/master/images/phaseMap_example.png)
