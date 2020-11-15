@@ -5,7 +5,7 @@ There are two basic tutorials for basic analysis of imaging data (Tutorial_basic
 
 ```dataPath = path to your data;```
 
-The first tutorial 'Tutorial_basicAnalysis' will work on any of the example datasets but some of the basic variables (such as the name of the imaging files) need to be adjusted for different datasets. By default, the settings match the dataset in the preprocessed folder (preproc_tactile_hindpawMap). This dataset is the smallest and quickest to use to get an overview on how to analyze imaging data. When using any of the datasets in the 'raw-datasets' folder, make sure to adjust the name of the imaging files to 'Frames_2_640_540_uint16' and set opts.preProc to false. 
+The first tutorial 'Tutorial_basicAnalysis' will work on any of the example datasets but some of the basic variables (such as the name of the imaging files) need to be adjusted for different datasets. By default, the settings match the dataset in the preprocessed folder (preproc_tactile_hindpawMap). This dataset is the smallest and quickest to use to get an overview on how to analyze imaging data. When using any of the datasets in the 'raw-datasets' folder, make sure to adjust the name of the imaging files to 'Frames_2_640_540_uint16' and set opts.preProc to false. To clearly see visual responses in phasemaping datasets, you should also increase the duration of opts.postStim to 5 seconds or longer.
 
 The second tutorial 'Tutorial_dimReduction' will work for any of examples in the 'raw-datasets' folder.
 
