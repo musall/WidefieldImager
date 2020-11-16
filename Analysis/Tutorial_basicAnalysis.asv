@@ -4,7 +4,7 @@
 % over all pixels.
 %
 % You can test this on either behavioral or mapping example data. Just
-% change the variable 'dataPath' to the data path that contains the imaging
+% change the variable 'fPath' to the datapath that contains the imaging
 % data. The settings below are adjusted to produce an example map for
 % somatosensory hindpaw stimulation, when using the dataset
 % 'preproc_tactile_hindpawMap'. It can be downloaded from the CSHL
@@ -19,7 +19,7 @@ opts.stimLine = 4; %analog line that contains stimulus trigger.
 opts.trigLine = [2 3]; %analog lines for blue and violet light triggers.
 opts.preStim = 0.5; %pre-stimulus duration in seconds
 opts.postStim = 1; %post-stimulus duration in seconds
-opts.plotChans = true; %flag to show separate channels when loading dual-wavelength data in each trial
+opts.plotChans = false; %flag to show separate channels when loading data
 opts.sRate = 30; %sampling rate in Hz
 opts.downSample = 4; %spatial downsampling factor
 opts.hemoCorrect = false; %hemodynamic correction is optional (this only works with dual-color data in raw datasets).
@@ -43,47 +43,47 @@ for trialNr = 1 : nrTrials
     
     [~,~,a] = fileparts(rawFiles(trialNr).name); %get data type (should be .dat or .tif for raw. also works with .mj2 for compressed data)
     
-    
-    if ~opts.preProc %no preprocessing. assuming two wavelengths for expsure light (blue and violet).
-        
-        [bData,~,vData] = splitChannels(opts,trialNr,a); %split channels and get blue and violet data
-        
-        if trialNr == 1
-            bData = single(squeeze(bData));
-            blueRef = fft2(median(bData,3)); %blue reference for motion correction
+
+        if ~opts.preProc %no preprocessing. assuming two wavelengths for expsure light (blue and violet). 
             
-            vData = single(squeeze(vData));
-            violetRef = fft2(median(vData,3)); %violet reference for motion correction
-        end
-        
-        %perform motion correction for both channels
-        for iFrames = 1:size(bData,3)
-            [~, temp] = dftregistration(blueRef, fft2(bData(:, :, iFrames)), 10);
-            bData(:, :, iFrames) = abs(ifft2(temp));
+            [bData,~,vData] = splitChannels(opts,trialNr,a); %split channels and get blue and violet data
             
-            [~, temp] = dftregistration(violetRef, fft2(vData(:, :, iFrames)), 10);
-            vData(:, :, iFrames) = abs(ifft2(temp));
-        end
-        
-        %perform hemodynamic correction for individual pixels
-        if opts.hemoCorrect
-            data = Widefield_HemoCorrect(bData,vData,baselineDur,5); %hemodynamic correction
+            if trialNr == 1
+                bData = single(squeeze(bData));
+                blueRef = fft2(median(bData,3)); %blue reference for motion correction
+
+                vData = single(squeeze(vData));
+                hemoRef = fft2(median(vData,3)); %violet reference for motion correction
+            end
+            
+            %perform motion correction for both channels
+            for iFrames = 1:size(bData,3)
+                [~, temp] = dftregistration(blueRef, fft2(bData(:, :, iFrames)), 10);
+                bData(:, :, iFrames) = abs(ifft2(temp));
+                
+                [~, temp] = dftregistration(hemoRef, fft2(vData(:, :, iFrames)), 10);
+                vData(:, :, iFrames) = abs(ifft2(temp));
+            end
+            
+            if opts.hemoCorrect %perform hemodynamic correction
+                data = Widefield_HemoCorrect(bData,vData,baselineDur,5); %hemodynamic correction
+            else
+                data = bData;
+            end
+            
+        elseif opts.preProc %pre-processed data. simply load all available data.
+            
+            cFile = [opts.fPath filesep 'frameTimes_' num2str(trialNr, '%04i') '.mat']; %need size of imaging data
+            load(cFile, 'imgSize');
+            
+            cFile = [opts.fPath filesep opts.fName '_' num2str(trialNr, '%04i') opts.fileExt]; %current file to be read
+            [~, data] = loadRawData(cFile, 'Frames', 'uint16', imgSize); %load imaging data
+
         else
-            data = bData;
+            error('Could not read number of channels from filename or channelnumber is >2.'); %for this to work filenames should contain the channelnumber after a _ delimiter
         end
-        
-    elseif opts.preProc %pre-processed data. simply load all available data and skip motion correction ect.
-        
-        cFile = [opts.fPath filesep 'frameTimes_' num2str(trialNr, '%04i') '.mat']; %need size of imaging data
-        load(cFile, 'imgSize');
-        
-        cFile = [opts.fPath filesep opts.fName '_' num2str(trialNr, '%04i') opts.fileExt]; %current file to be read
-        [~, data] = loadRawData(cFile, 'Frames', 'uint16', imgSize); %load imaging data
-        
-    else
-        error('Could not read number of channels from filename or channelnumber is >2.'); %for this to work filenames should contain the channelnumber after a _ delimiter
     end
-    
+            
     %spatially downsample imaging data
     data = arrayResize(data, 4); %this reduces resolution to ~80um / pixel
     if imgSize(end) < nrFrames
@@ -98,7 +98,7 @@ for trialNr = 1 : nrTrials
 end
 clear data bData vData
 
-if ~opts.hemoCorrect %dF/F is automatically computed during hemodynamic correction
+if ~opts.hemoCorrect %this step is automatically done during hemodynamic correction
     
     % compute dF/F by subtracting and dividing the pre-stimulus baseline
     baselineAvg = nanmean(nanmean(allData(:,:, baselineDur, :),3), 4);
