@@ -69,13 +69,18 @@ handles = RecordMode_Callback(handles.RecordMode, [], handles); %check recording
 guidata(handles.WidefieldImager, handles);
 
 %% initialize camera and set handles
-handles.vidName = 'pcocameraadaptor'; %PCO camera
+info = imaqhwinfo;
+handles.vidName = [];
+camCheck = contains(info.InstalledAdaptors, 'pcocameraadaptor');
+
+if any(camCheck)
+handles.vidName = info.InstalledAdaptors{camCheck}; %PCO camera
+end
 handles.vidObj = checkCamera(handles.vidName, handles); %get PCO video object
 
 % check for other cameras if PCO adaptor is unavailable.
 if isempty(handles.vidObj)
     disp('PCO camera not available. Searching for other cameras.');
-    info = imaqhwinfo;
     handles.vidName = [];
     if length(info.InstalledAdaptors) == 1
         handles.vidName = info.InstalledAdaptors{1};
@@ -670,7 +675,7 @@ else
             set(findall(handles.ExperimentID, '-property', 'enable'), 'enable', 'on')
             set(findall(handles.ControlPanel, '-property', 'enable'), 'enable', 'on')
             handles.FrameRate.Enable = 'on';
-            if strcmpi(handles.vidName, 'pcocameraadaptor')
+            if contains(handles.vidName, 'pcocameraadaptor')
                 handles.sBinning.Enable = 'on';
             end
             handles.driveSelect.Enable = 'on';
@@ -719,7 +724,7 @@ else
                 handles.aNIdevice.startBackground(); %start analog data streaming
             end
             
-            if strcmpi(handles.vidName, 'pcocameraadaptor')
+            if contains(handles.vidName, 'pcocameraadaptor')
                 frameRate = str2double(handles.FrameRate.String);
             else
                 frameRate = str2double(handles.FrameRate.String{handles.FrameRate.Value});
@@ -1170,7 +1175,7 @@ if ~isempty(handles.vidObj)
     stop(handles.vidObj);
     flushdata(handles.vidObj);
     src = getselectedsource(handles.vidObj);
-    if strcmpi(handles.vidName, 'pcocameraadaptor')
+    if contains(handles.vidName, 'pcocameraadaptor')
         if str2double(handles.FrameRate.String) > 10 && strcmp(handles.sBinning.String(handles.sBinning.Value),'1')
             answer = questdlg('Spatial binning is set to 1. This could produce a lot of data. Proceed?');
             if strcmpi(answer,'Yes')
@@ -1232,7 +1237,7 @@ function sBinning_Callback(hObject, eventdata, handles)
 % Hints: contents = cellstr(get(hObject,'String')) returns sBinning contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from sBinning
 
-if strcmpi(handles.vidName, 'pcocameraadaptor') 
+if contains(handles.vidName, 'pcocameraadaptor')
     src = getselectedsource(handles.vidObj);
     if str2double(handles.FrameRate.String) > 10 && strcmp(hObject.String(hObject.Value),'1')
         src.E2ExposureTime = 100000; %limit framerate to 10Hz
@@ -1241,9 +1246,15 @@ if strcmpi(handles.vidName, 'pcocameraadaptor')
         src.E2ExposureTime = 1000/str2double(handles.FrameRate.String)*1000; %make sure current framerate is used
     end
     
-    src.B1BinningHorizontal = hObject.String(hObject.Value);
-    src.B2BinningVertical = hObject.String(hObject.Value);
-    
+    binFact = str2num(hObject.String(hObject.Value));
+    try %uses different string in different adaptor versions...
+        src.B1BinningHorizontal = num2str(binFact);
+        src.B2BinningVertical = num2str(binFact);
+    catch
+        src.B1BinningHorizontal = num2str(binFact,'%02i');
+        src.B2BinningVertical = num2str(binFact,'%02i');
+    end
+        
     vidRes = get(handles.vidObj,'VideoResolution');
     handles.CurrentResolution.String = [num2str(vidRes(1)) ' x ' num2str(vidRes(2))]; %update current resolution indicator
 end
@@ -1399,11 +1410,20 @@ try
     vidObj = videoinput(adaptorName); %get video object
     src = getselectedsource(vidObj);
     
-    if strcmpi(adaptorName, 'pcocameraadaptor') %check for PCO camera and set specific settings
-        src.PCPixelclock_Hz = '286000000'; %fast scanning mode
+    if contains(adaptorName, 'pcocameraadaptor') %check for PCO camera and set specific settings
+        clockSpeed = set(src,'PCPixelclock_Hz');
+        [~,idx] = max(str2num(cell2mat(clockSpeed))); %get fastest clockspeed
+        src.PCPixelclock_Hz = clockSpeed{idx}; %fast scanning mode
         src.E2ExposureTime = 1000/str2double(handles.FrameRate.String) * 1000; %set framerate
-        src.B1BinningHorizontal = '4';
-        src.B2BinningVertical = '4';
+        binFact = 4; %set 4x binning by default
+        
+        try %uses different string in different adaptor versions...
+            src.B1BinningHorizontal = num2str(binFact);
+            src.B2BinningVertical = num2str(binFact);
+        catch
+            src.B1BinningHorizontal = num2str(binFact,'%02i');
+            src.B2BinningVertical = num2str(binFact,'%02i');
+        end
     else
         try
             handles.FrameRate.Style = 'popupmenu'; %change menu style to indicate available frame rates
