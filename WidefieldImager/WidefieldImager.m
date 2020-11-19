@@ -52,10 +52,10 @@ function WidefieldImager_OpeningFcn(hObject, eventdata, handles, varargin)
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to WidefieldImager (see VARARGIN)
 
-% check if matlab is 2014b or newer
+% check if matlab is 2016b or newer
 handles.output = hObject;
-if datenum(version('-date')) < 735857 %check if matlab is 2014b or newer
-    warning('Matlab version is older as 2014b. This code has not been tested on earlier versions.')
+if datenum(version('-date')) < 736588 %check if matlab is 2016b or newer
+    warning('Matlab version is older as 2016b. This code might break on earlier versions because of the "contains" function.')
 end
 
 % some variables
