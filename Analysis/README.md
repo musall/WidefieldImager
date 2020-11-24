@@ -44,12 +44,13 @@ will restore the first 10 frames in the current dataset.
 
 The 'index frameCnt' contains the number of frames per trial and 'stimTime' indicates at which trial a stimulus was presented'. Using these variables you can reconstruct imaging data from different trials or responses to stimulus events of interest.
 
-# computePhaseMapsRaw
+# computePhaseMaps
 This function generates visual phase maps from cortical imaging data. Download raw example dataset 2 or 3 or use your own cortical imaging data. A detailed description on visual phase maps and how to create the visual stimulation for visual mapping can be found in this [protocol](https://www.nature.com/articles/nprot.2016.158) by Juavinett et al.
 
 To use the function, simply provide the path to the dataset ('dataPath') and the name of the animal (Plex66 for dataset2 or Fez73 for dataset3).
 
+Use 'computePhaseMapsRaw' to create phasemaps from raw imaging data (either saved in flat binary or .mj2 files). Use 'computePhaseMap' to create phase maps from low-D imaging data after running the dimensionality reduction code described above. 
+
+Lastly, you can use the 'computePhaseMapNCAAS' function to create phase maps from low dimensional data, created by the cloud-based NeuroCAAS plattform. Check [here](https://github.com/jcouto/wfield/blob/master/usecases.md) for details on how to use NCAAS.
+
 ![picture](https://github.com/musall/WidefieldImager/blob/master/images/phaseMap_example.png)
-
-
-The same function can also be used for low-dimensional data: Use 'computePhaseMap' to create phase maps from the same data after running the dimensionality reduction code described above. You can also use use 'computePhaseMapNCAAS' to create phase maps from low dimensional data, created by the cloud-based NeuroCAAS plattform. Check [here](https://github.com/jcouto/wfield/blob/master/usecases.md) for details on how to use NCAAS.
