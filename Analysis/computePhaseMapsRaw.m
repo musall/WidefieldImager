@@ -1,7 +1,7 @@
 function computePhaseMapsRaw(dataPath,Animal,nTrials,winSize,smth,rotateImage)
 
 %% Set basic variables
-% dbstop computePhaseMapsRaw 145; %optional - this can be used to pause the code and adjust variables like the amount of smoothing to get a better map
+dbstop computePhaseMapsRaw 154; %optional - this can be used to pause the code and adjust variables like the amount of smoothing to get a better map
 
 if ~strcmpi(dataPath(end),filesep)
     dataPath = [dataPath filesep];
@@ -151,7 +151,7 @@ save([dataPath 'fTransform.mat'],'fTransform'); %keep this to reconstruct phasem
 clear Data
 
 %% do fft analysis to get phase and magnitude maps
-for iTrials = 2
+for iTrials = 1
     Cnt = 1;
     for iConds = [1 3] %this expects 4 directions to construct horizontal and vertical map
         for iRuns = 1:size(fTransform{iConds,iTrials},1)
@@ -209,11 +209,10 @@ for iTrials = 2
 end
 
 %% get phase and amplitude + vessel map for plotting
-trialSelect = 2; %use this to select which trialcount should be used for subsequent figures
-plotPhaseMap = spatialFilterGaussian(cVFS{1,trialSelect},smth);
+plotPhaseMap = spatialFilterGaussian(cVFS{1,iTrials},smth);
 plotPhaseMap = imresize(plotPhaseMap,binSize);
 
-plotAmpMap = spatialFilterGaussian(imresize(cMagMaps{trialSelect},binSize),25); %smoothed magnitude map
+plotAmpMap = spatialFilterGaussian(imresize(cMagMaps{iTrials},binSize),25); %smoothed magnitude map
 plotAmpMap =(plotAmpMap-min(plotAmpMap(:)))./(max(plotAmpMap(:))- min(plotAmpMap(:))); %normalize between 0 and 1
 plotAmpMap = spatialFilterGaussian(plotAmpMap,25); %smoothed magnitude map
 
