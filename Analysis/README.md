@@ -50,3 +50,6 @@ This function generates visual phase maps from cortical imaging data. Download r
 To use the function, simply provide the path to the dataset ('dataPath') and the name of the animal (Plex66 for dataset2 or Fez73 for dataset3).
 
 ![picture](https://github.com/musall/WidefieldImager/blob/master/images/phaseMap_example.png)
+
+
+The same function can also be used for low-dimensional data: Use 'computePhaseMap' to create phase maps from the same data after running the dimensionality reduction code described above. You can also use use 'computePhaseMapNCAAS' to create phase maps from low dimensional data, created by the cloud-based NeuroCAAS plattform. Check [here](https://github.com/jcouto/wfield/blob/master/usecases.md) for details on how to use NCAAS.
