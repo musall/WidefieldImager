@@ -68,7 +68,7 @@ if length(numCycles) ~= 1
 end
 
 % check that phasemap intervals make sense and also make sure that a
-% phasemap is computed for the average over all trials in each condition
+% phasemap is also computed for the average over all trials in each condition
 nTrials(nTrials <= 0 | nTrials > length(Trials)/4) = length(Trials)/4; 
 nTrials = [nTrials floor(length(Trials)/4)]; nTrials = unique(nTrials);
 
@@ -147,6 +147,7 @@ for iTrials = Trials
     condCnt(iBarConds(:,iTrials)) =  condCnt(iBarConds(:,iTrials))+1;
     disp(['Done loading trial ' int2str(iTrials) '/' int2str(max(Trials))]);
 end
+save([dataPath 'fTransform.mat'],'fTransform'); %keep this to reconstruct phasemaps later if needed
 clear Data
 
 %% do fft analysis to get phase and magnitude maps

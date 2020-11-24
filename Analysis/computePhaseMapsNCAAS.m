@@ -1,10 +1,11 @@
-function computePhaseMaps(fPath,Animal,nTrials,winSize,smth,rotateImage)
+function computePhaseMapsNCAAS(fPath,Animal,nTrials,winSize,smth,rotateImage)
 % dbstop Widefield_ComputePhaseMaps 109;
 
 %% Set basic variables
-fName = 'Vc'; %name of data file
 screenSize = [119.07 143.13]; %size of screen in visual degrees
-phaseMapSmth = 1; %smoothing of phasemaps. can help to get better sign maps.
+phaseMapSmth = 3; %smoothing of phasemaps. can help to get better sign maps.
+baseDur = 2; %length of baseline in seconds
+frameRate = 30; %rate in frames per seconds
 
 if ~strcmpi(fPath(end),filesep)
     fPath = [fPath filesep];
@@ -19,7 +20,7 @@ if ~exist('winSize','var')
 end
 
 if ~exist('smth','var')
-    smth = 1;                         %smoothing factor for gaussian smooth on maps
+    smth = 2;                         %smoothing factor for gaussian smooth on maps
 end
 
 if ~exist('rotateImage','var')
@@ -31,13 +32,20 @@ end
 disp(['Current path: ' fPath]); tic
 
 %Load svd-compressed data. Contains all imaging data and timestamps in ms for each frame.
-load([fPath fName], 'Vc', 'U', 'frameCnt', 'stimTime');
+U = readNPY([fPath 'U_atlas.npy']);
+Vc = readNPY([fPath 'SVTcorr.npy']);
 
 %load settings
 cFile = ls([fPath Animal '*settings.mat']);
 load([fPath cFile], 'StimData');
 Trials = 1 : str2double(StimData.handles.NrTrials);
-sRate = round(1 / StimData.sRate) / 2; %frame rate in Hz
+
+%get mask from allen data
+load('allenDorsalMapSM.mat', 'dorsalMaps')
+allenMask = true(size(U,1),size(U,2));
+idx = (size(U,2) - size(dorsalMaps.allenMask,2))/2 + 1;
+allenMask(:, idx : idx + size(dorsalMaps.allenMask, 2)-1)  = dorsalMaps.allenMask;
+U = arrayCrop(U,allenMask); %apply mask to imaging data
 
 %% get different bar direction and orentiations for individual trials
 BarOrient = StimData.VarVals(strcmpi(StimData.VarNames,'BarOrient'),:); %get bar orientation for all trials
@@ -58,6 +66,7 @@ numCycles = unique(StimDur(Trials)./(1./barFreq(Trials))); %number of cycles in 
 nTrials(nTrials <= 0 | nTrials > length(Trials)/4) = length(Trials)/4; 
 nTrials = [nTrials floor(length(Trials)/4)]; nTrials = unique(nTrials);
 
+
 % check for number of cycles and trials in dataset
 if length(numCycles) ~= 1
     error('Number of cycles per trial is inconsistent. This code is not meant to handle that.')
@@ -66,18 +75,25 @@ disp(['Trials per condition: ' num2str(length(Trials)/4) ' - Computing phasemaps
 TrialCnts = ones(4,length(nTrials));
 avgData = cell(4,length(nTrials)); % averaged sequence for each condition and trialcount
 fTransform = cell(4,length(nTrials)); % fourier transforms for each condition and trialcount 
+Vc = reshape(Vc, size(Vc,1), [], length(Trials));
 
 %% get single trials and average for each condition to end up with one sequence
 condCnt = zeros(1,4); %counter for how many sequences were saved in each condition
+trialAvg = [];
 for iTrials = Trials
     %% load data
-    trialStart = sum(frameCnt(2,1:iTrials)) - frameCnt(2,iTrials) + 1; %first frame of current trial
-    Data = reshape(U,[],size(U,3)) * Vc(:,trialStart : sum(frameCnt(2,1:iTrials)));
+    Data = reshape(U,[],size(U,3)) * Vc(:, :, iTrials);
     Data = reshape(Data, size(U,1), size(U,2), []);  
+    Data = Data(:,:,baseDur*frameRate+1: end); %only use stimulation part of the data;
+
+    % keep rolling average over all trials
+    if sum(condCnt) == 0
+        trialAvg = Data;
+    else
+        trialAvg = (trialAvg .* sum(condCnt) + Data) ./ (sum(condCnt)+1); %produce average
+    end
     
     %% compute the amount of required frames and collect from data
-    stimFrames = StimDur(iTrials)*sRate; %required frames for stim sequence
-    Data = Data(:,:,stimTime(iTrials): stimTime(iTrials) + stimFrames - 1); %only use stimulation part of the data;
 
     binSize = floor((max(size(Data(:,:,1)))/winSize)/40); %compute binsize to get closest to 40 pixels/mm (recommended for segmentation code).
     if winSize > 1 && winSize < inf
@@ -146,6 +162,9 @@ for iTrials = 1
     end
     
     cVFS{1,iTrials} = median(cat(3,VFS{:}),3);
+    cVFS{1,iTrials} = spatialFilterGaussian(cVFS{1,iTrials},smth);
+    cVFS{1,iTrials} = arrayCrop(cVFS{1,iTrials}, allenMask);
+
     clear magMaps phaseMaps VFS
     
     h = figure;
@@ -159,8 +178,8 @@ for iTrials = 1
     imagesc(cMagMaps{iTrials});axis image; colorbar; colormap jet;
     title('Mean Magnitude');
     subplot(2,2,4);
-    imagesc(spatialFilterGaussian(cVFS{1,iTrials},smth)); axis image;colorbar
-    caxis([-0.5 0.5])
+    imagesc(cVFS{1,iTrials}); axis image;colorbar
+    caxis([-1 1])
     title(['VisualFieldSign - binSize = ' num2str(binSize) '; smth = ' num2str(smth)]);
     savefig(h,[fPath '\' Animal '_phaseMap_allPlots_ ' int2str(nTrials(iTrials)) '_trials.fig']);
     h.PaperUnits = 'inches';
@@ -172,10 +191,10 @@ end
 
 %% get phase and amplitude + vessel map for plotting
 trialSelect = 1; %use this to select which trialcount should be used for subsequent figures
-plotPhaseMap = spatialFilterGaussian(cVFS{1,trialSelect},smth);
+plotPhaseMap = cVFS{1,iTrials};
 plotPhaseMap = imresize(plotPhaseMap,binSize);
 
-plotAmpMap = spatialFilterGaussian(imresize(cMagMaps{trialSelect},binSize),25); %smoothed magnitude map
+plotAmpMap = imresize(cMagMaps{trialSelect},binSize); %smoothed magnitude map
 plotAmpMap =(plotAmpMap-min(plotAmpMap(:)))./(max(plotAmpMap(:))- min(plotAmpMap(:))); %normalize between 0 and 1
 plotAmpMap = spatialFilterGaussian(plotAmpMap,25); %smoothed magnitude map
 
@@ -190,10 +209,10 @@ if size(snap,1) > size(plotPhaseMap,1) %resize if vessel map is larger
     plotAmpMap = imresize(plotAmpMap,size(snap,1)/size(plotAmpMap,1));
 end
 
-%% plot vessel map with overlayed sign map
+%% show phasemap
 h = figure;
 imagesc(plotPhaseMap); colormap jet; 
-caxis([-0.5 0.5])
+caxis([-1 1])
 title([Animal ' - PhaseMap']);axis image
 savefig(h,[fPath Animal '_RawPhaseMap.fig']);
 saveas(h,[fPath Animal '_RawPhaseMap.jpg']);
@@ -203,18 +222,14 @@ save([fPath 'cMagMaps.mat'],'cMagMaps');
 save([fPath 'cPhaseMaps.mat'],'cPhaseMaps');
 save([fPath 'cVFS.mat'],'cVFS');
 
-h = figure;
-imagesc(snap);axis image; colormap gray; freezeColors; hold on
-vfsIm = imagesc(plotPhaseMap); colormap jet; 
-caxis([-0.5 0.5]);
-set(vfsIm,'AlphaData',plotAmpMap); axis image
-title([Animal ' - PhaseMap + Vesselmap'])
-savefig(h,[fPath Animal '_phaseMap.fig']);
-saveas(h,[fPath Animal '_phaseMap.jpg'])
+%% show averaged stimulation data
+compareMovie(trialAvg); %this should show clear visual modulation in posterior cortex
 
 
 
-%nested functions
+
+
+%% nested functions
 function img = spatialFilterGaussian(img, sigma)
 if sigma > 0 && (numel(img) ~=  sum(sum(isnan(img))))
     hh = fspecial('gaussian',size(img),sigma);
