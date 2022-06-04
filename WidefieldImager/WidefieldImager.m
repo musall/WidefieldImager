@@ -1412,7 +1412,7 @@ try
     
     if contains(adaptorName, 'pcocameraadaptor') %check for PCO camera and set specific settings
         clockSpeed = set(src,'PCPixelclock_Hz');
-        [~,idx] = max(str2num(cell2mat(clockSpeed))); %get fastest clockspeed
+        [~,idx] = max(cellfun(@str2num,clockSpeed)); %get fastest clockspeed
         src.PCPixelclock_Hz = clockSpeed{idx}; %fast scanning mode
         src.E2ExposureTime = 1000/str2double(handles.FrameRate.String) * 1000; %set framerate
         binFact = 4; %set 4x binning by default
