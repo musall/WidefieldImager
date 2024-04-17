@@ -43,7 +43,7 @@ if ishold==0
 end
 
 hold on;
-lineOut = plot(F,amean,acolor,'linewidth',1.5); %% change color or linewidth to adjust mean line
+lineOut = plot(F,amean, 'color', acolor,'linewidth',1.5); %% change color or linewidth to adjust mean line
 
 if check
     hold off;
